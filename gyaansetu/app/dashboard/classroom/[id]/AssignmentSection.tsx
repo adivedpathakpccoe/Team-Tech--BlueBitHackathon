@@ -1,11 +1,13 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { assignmentsApi, type Assignment, type AssignmentCreate } from '@/lib/api'
 import styles from './classroom.module.css'
 import { toast } from 'sonner'
 
 export default function AssignmentSection({ classroomId, token }: { classroomId: string, token: string }) {
+    const router = useRouter()
     const [assignments, setAssignments] = useState<Assignment[]>([])
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [editingAssignment, setEditingAssignment] = useState<Assignment | null>(null)
@@ -257,7 +259,12 @@ export default function AssignmentSection({ classroomId, token }: { classroomId:
                                         {assignment.enable_socratic && <span className={styles.socraticBadge}>Socratic</span>}
                                     </div>
                                 )}
-                                <button className={styles.viewBtn}>View Detailed Analytics</button>
+                                <button
+                                    className={styles.viewBtn}
+                                    onClick={() => router.push(`/dashboard/classroom/${classroomId}/assignment/${assignment.id}/analytics`)}
+                                >
+                                    View Detailed Analytics
+                                </button>
                             </div>
                         </div>
                     ))

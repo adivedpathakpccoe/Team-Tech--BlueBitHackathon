@@ -8,6 +8,7 @@ class SubmissionCreate(BaseModel):
     """Request body for submitting an essay (proactive mode)."""
     assignment_id: UUID
     essay_text: str
+    replay_log: str | None = None
 
 
 class SubmissionResponse(TimestampedModel):
@@ -16,6 +17,8 @@ class SubmissionResponse(TimestampedModel):
     assignment_id: UUID
     essay_text: str
     submitted_at: datetime
+    replay_log: str | None = None
+    honeypot_score: float | None = None
 
 
 class BehaviorLogCreate(BaseModel):

@@ -1,0 +1,369 @@
+.page {
+    min-height: 100vh;
+    background: #fdfdfc;
+    color: #1a1a1a;
+    display: flex;
+    flex-direction: column;
+}
+
+.header {
+    background: white;
+    padding: 2rem 4rem;
+    border-bottom: 1px solid #eee;
+}
+
+.headerTop {
+    margin-bottom: 1.5rem;
+}
+
+.backLink {
+    font-family: var(--font-display, monospace);
+    font-size: 0.75rem;
+    color: #666;
+    text-decoration: none;
+    letter-spacing: 0.05em;
+    transition: color 0.2s;
+}
+
+.backLink:hover {
+    color: #1a8c82;
+}
+
+.title {
+    font-family: var(--font-display, serif);
+    font-size: 2rem;
+    font-weight: 800;
+    color: #111;
+    margin-bottom: 0.5rem;
+}
+
+.subtitle {
+    font-size: 0.95rem;
+    color: #666;
+    max-width: 600px;
+}
+
+.mainGrid {
+    display: grid;
+    grid-template-columns: 420px 1fr;
+    flex: 1;
+    padding: 2rem 4rem;
+    gap: 2.5rem;
+    max-width: 1800px;
+    margin: 0 auto;
+    width: 100%;
+}
+
+@media (max-width: 1200px) {
+    .mainGrid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ─── List Card ────────────────────────────────────────────────────────────── */
+
+.listCard {
+    background: white;
+    border: 1px solid #eee;
+    border-radius: 8px;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 250px);
+    position: sticky;
+    top: 2rem;
+}
+
+.cardTitle {
+    font-family: var(--font-display, monospace);
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: #999;
+    margin-bottom: 1.5rem;
+}
+
+.tableWrap {
+    flex: 1;
+    overflow-y: auto;
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.table th {
+    text-align: left;
+    font-family: var(--font-display, monospace);
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #aaa;
+    padding: 0.75rem 0.5rem;
+    border-bottom: 1px solid #f5f5f5;
+}
+
+.table td {
+    padding: 1rem 0.5rem;
+    font-size: 0.85rem;
+    border-bottom: 1px solid #f9f9f9;
+}
+
+.table tbody tr {
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.table tbody tr:hover {
+    background: #fdfaf3;
+}
+
+.selectedRow {
+    background: #f8f8f2 !important;
+}
+
+.studentInfo {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-weight: 600;
+}
+
+.avatar {
+    width: 28px;
+    height: 28px;
+    background: #1a8c82;
+    color: white;
+    font-size: 0.75rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+}
+
+.scoreTag {
+    display: inline-block;
+    padding: 0.2rem 0.5rem;
+    font-family: var(--font-display, monospace);
+    font-size: 0.7rem;
+    font-weight: 700;
+    border-radius: 3px;
+}
+
+.scoreGreen {
+    background: rgba(16, 185, 129, 0.1);
+    color: #059669;
+}
+
+.scoreRed {
+    background: rgba(239, 68, 68, 0.1);
+    color: #dc2626;
+}
+
+.ownershipLabel {
+    font-family: var(--font-display, monospace);
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #111;
+}
+
+.viewRowBtn {
+    font-size: 0.7rem;
+    background: transparent;
+    border: 1px solid #ddd;
+    padding: 0.35rem 0.6rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.viewRowBtn:hover {
+    background: #1a8c82;
+    color: white;
+    border-color: #1a8c82;
+}
+
+.emptyTable {
+    text-align: center;
+    color: #999;
+    padding: 3rem !important;
+    font-style: italic;
+}
+
+/* ─── Replay Card ──────────────────────────────────────────────────────────── */
+
+.replayCard {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+.replayHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid #eee;
+}
+
+.replayTitle {
+    font-family: var(--font-display, serif);
+    font-size: 1.4rem;
+    font-weight: 800;
+    margin-bottom: 0.25rem;
+}
+
+.replayMeta {
+    font-family: var(--font-display, monospace);
+    font-size: 0.7rem;
+    color: #999;
+    letter-spacing: 0.05em;
+}
+
+.replayStats {
+    display: flex;
+    gap: 2rem;
+}
+
+.statItem {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+}
+
+.statLabel {
+    font-family: var(--font-display, monospace);
+    font-size: 0.6rem;
+    text-transform: uppercase;
+    color: #bbb;
+    letter-spacing: 0.1em;
+}
+
+.statVal {
+    font-size: 1.2rem;
+    font-weight: 700;
+}
+
+.replayContainer {
+    border-radius: 8px;
+    overflow: hidden;
+    height: 500px;
+    border: 1px solid #000;
+}
+
+.replayLoading {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: #0d0d0d;
+    color: #4ecdc4;
+    gap: 1rem;
+    font-family: var(--font-display, monospace);
+}
+
+.noReplay {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: #111;
+    color: #666;
+    text-align: center;
+    padding: 2rem;
+}
+
+.noReplayIcon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    opacity: 0.3;
+}
+
+.noReplay p {
+    color: #eee;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.noReplay span {
+    font-size: 0.8rem;
+    max-width: 300px;
+}
+
+.essayBox {
+    background: white;
+    border: 1px solid #eee;
+    border-radius: 8px;
+    padding: 2rem;
+}
+
+.essayBoxTitle {
+    font-family: var(--font-display, monospace);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: #999;
+    margin-bottom: 1.5rem;
+}
+
+.essayText {
+    font-family: var(--font-body, serif);
+    line-height: 1.8;
+    font-size: 1.1rem;
+    color: #333;
+    white-space: pre-wrap;
+}
+
+.selectPrompt {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 500px;
+    text-align: center;
+    color: #999;
+    border: 2px dashed #eee;
+    border-radius: 8px;
+    padding: 3rem;
+}
+
+.selectIcon {
+    font-size: 3rem;
+    margin-bottom: 1.5rem;
+}
+
+.selectPrompt h3 {
+    font-weight: 700;
+    color: #111;
+    margin-bottom: 0.5rem;
+}
+
+.loadingBox {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    gap: 1.5rem;
+    color: #1a8c82;
+    font-family: var(--font-display, monospace);
+}
+
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid rgba(26, 140, 130, 0.1);
+    border-top-color: #1a8c82;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}

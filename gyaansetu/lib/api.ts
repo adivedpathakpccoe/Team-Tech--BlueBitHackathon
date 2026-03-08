@@ -3,7 +3,7 @@
  * Base URL is configured via NEXT_PUBLIC_API_URL env var.
  */
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'https://rg89c906-8000.inc1.devtunnels.ms'
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://dwain-unmystic-addyson.ngrok-free.dev'
 const EXTRACTOR_URL = process.env.NEXT_PUBLIC_EXTRACTOR_URL ?? 'http://localhost:8001'
 
 // ─── Response types ──────────────────────────────────────────────────────────
@@ -296,6 +296,7 @@ export interface SubmissionResult {
     assignment_id: string
     essay_text: string
     honeypot_score: number | null
+    replay_log?: string | null
 }
 
 export interface BehaviorLog {
@@ -309,11 +310,15 @@ export interface BehaviorLog {
 
 export const submissionsApi = {
     /** Submit an essay for an assignment */
-    create: (payload: { assignment_id: string; essay_text: string }, token: string) =>
+    create: (payload: { assignment_id: string; essay_text: string; replay_log?: string }, token: string) =>
         apiFetch<SubmissionResult>('/api/submissions/', {
             method: 'POST',
             body: JSON.stringify(payload),
         }, token),
+
+    /** List all submissions for an assignment (teacher view) */
+    listByAssignment: (assignment_id: string, token: string) =>
+        apiFetch<any[]>(`/api/submissions/assignment/${assignment_id}`, {}, token),
 
     /** Log behavioral telemetry for a submission */
     logBehavior: (payload: BehaviorLog, token: string) =>
@@ -378,4 +383,17 @@ export const extractorApi = {
 
         return await res.json()
     }
+}
+
+// ─── Replay endpoints (teacher) ──────────────────────────────────────────────
+
+import type { ReplayLog } from './replayEngine'
+
+export const replayApi = {
+    /**
+     * Fetch a student's WritingDNA replay log for a submission.
+     * Returns the parsed ReplayLog object.
+     */
+    getLog: (submission_id: string, token: string) =>
+        apiFetch<ReplayLog | null>(`/api/submissions/${submission_id}/replay`, {}, token),
 }

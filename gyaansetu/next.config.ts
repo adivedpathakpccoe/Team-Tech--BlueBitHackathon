@@ -6,7 +6,7 @@ const nextConfig: NextConfig = {
       {
         // Proxy /api/* → backend devtunnel so browser-side calls don't hit CORS issues
         source: '/backend/:path*',
-        destination: 'https://rg89c906-8000.inc1.devtunnels.ms/:path*',
+        destination: 'https://dwain-unmystic-addyson.ngrok-free.dev/:path*',
       },
     ]
   },

@@ -10,23 +10,30 @@ import {
     type SubmissionResult,
     type SocraticScoreResult,
 } from '@/lib/api'
+import { useDiffRecorder } from '@/lib/useDiffRecorder'
+import type { ReplayLog } from '@/lib/replayEngine'
 import styles from './assignment.module.css'
+import replayStyles from '@/components/ui/replay.module.css'
 import { toast } from 'sonner'
+import dynamic from 'next/dynamic'
 
-interface BehaviorTracker {
-    typingEvents: Array<{ t: number; type: string }>
-    pasteEvents: Array<{ t: number; len: number }>
-    largestPaste: number
-    tabSwitches: number
-    idleTime: number
-    lastKeyTime: number | null
-}
+// Lazy-load the playback viewer (heavy — only needed post-submit)
+const CodePlayback = dynamic(() => import('@/components/ui/CodePlayback'), { ssr: false })
+
+// ─── Constants ─────────────────────────────────────────────────────────────────
+
+const TAB_SWITCH_WARNING_THRESHOLD = 3
+const TAB_SWITCH_BLOCK_THRESHOLD = 5
+
+// ─── Difficulty styling ────────────────────────────────────────────────────────
 
 const difficultyStyle: Record<string, string> = {
     easy: styles.diffEasy,
     medium: styles.diffMedium,
     hard: styles.diffHard,
 }
+
+// ─── Component ─────────────────────────────────────────────────────────────────
 
 export default function AssignmentWorkspace({
     classroomAssignmentId,
@@ -36,32 +43,53 @@ export default function AssignmentWorkspace({
     token: string
 }) {
     const router = useRouter()
+
+    // ── Core state ──────────────────────────────────────────────────────────
     const [assignment, setAssignment] = useState<StudentAssignment | null>(null)
     const [isLoading, setIsLoading] = useState(true)
     const [essay, setEssay] = useState('')
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [submission, setSubmission] = useState<SubmissionResult | null>(null)
+    const [replayLog, setReplayLog] = useState<ReplayLog | null>(null)
+
+    // ── Socratic state ──────────────────────────────────────────────────────
     const [challenge, setChallenge] = useState<string | null>(null)
     const [isLoadingChallenge, setIsLoadingChallenge] = useState(false)
     const [socraticResponse, setSocraticResponse] = useState('')
     const [isScoringResponse, setIsScoringResponse] = useState(false)
     const [finalScore, setFinalScore] = useState<SocraticScoreResult | null>(null)
 
-    const behaviorRef = useRef<BehaviorTracker>({
-        typingEvents: [],
-        pasteEvents: [],
-        largestPaste: 0,
-        tabSwitches: 0,
-        idleTime: 0,
-        lastKeyTime: null,
-    })
+    // ── Anti-cheat / proctoring state ───────────────────────────────────────
+    const [tabSwitchCount, setTabSwitchCount] = useState(0)
+    const [showWarningOverlay, setShowWarningOverlay] = useState(false)
+    const [isSubmissionBlocked, setIsSubmissionBlocked] = useState(false)
+    const [showWarningBanner, setShowWarningBanner] = useState(false)
+    const [bannerDismissed, setBannerDismissed] = useState(false)
+    const tabSwitchCountRef = useRef(0) // authoritative for closures
 
-    // Load the student's distributed variant
+    // ── Recording hook ──────────────────────────────────────────────────────
+    const {
+        initLog,
+        recordTextChange,
+        recordPaste,
+        recordTabSwitch,
+        finalise,
+    } = useDiffRecorder()
+
+    const isProactive = assignment?.mode === 'proactive'
+
+    // ─── Load assignment ─────────────────────────────────────────────────────
+
     useEffect(() => {
         const load = async () => {
             try {
                 const res = await studentApi.getMyAssignmentVariant(classroomAssignmentId, token)
-                setAssignment(res.data ?? null)
+                const data = res.data ?? null
+                setAssignment(data)
+                if (data) {
+                    // Seed recorder with empty string (proactive text assignments start blank)
+                    initLog('')
+                }
             } catch (error) {
                 console.error('Failed to load assignment:', error)
                 toast.error('Failed to load assignment')
@@ -70,45 +98,143 @@ export default function AssignmentWorkspace({
             }
         }
         load()
-    }, [classroomAssignmentId, token])
+    }, [classroomAssignmentId, token, initLog])
 
-    // Track tab switches
+    // ─── Anti-cheat hooks (proactive mode only) ──────────────────────────────
+
     useEffect(() => {
+        if (!isProactive) return
+
+        // Visibility change — fired when user switches tabs or minimises window
         const onVisibilityChange = () => {
             if (document.visibilityState === 'hidden') {
-                behaviorRef.current.tabSwitches++
+                tabSwitchCountRef.current++
+                const count = tabSwitchCountRef.current
+                setTabSwitchCount(count)
+                recordTabSwitch()
+
+                if (count >= TAB_SWITCH_BLOCK_THRESHOLD) {
+                    setIsSubmissionBlocked(true)
+                    setShowWarningOverlay(true)
+                } else if (count >= TAB_SWITCH_WARNING_THRESHOLD) {
+                    setShowWarningOverlay(true)
+                }
+            } else {
+                // Returned to tab — show banner instead of full overlay
+                if (
+                    tabSwitchCountRef.current >= TAB_SWITCH_WARNING_THRESHOLD &&
+                    tabSwitchCountRef.current < TAB_SWITCH_BLOCK_THRESHOLD &&
+                    !bannerDismissed
+                ) {
+                    setShowWarningBanner(true)
+                }
             }
         }
-        document.addEventListener('visibilitychange', onVisibilityChange)
-        return () => document.removeEventListener('visibilitychange', onVisibilityChange)
-    }, [])
 
-    const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-        const now = Date.now()
-        const tracker = behaviorRef.current
-        if (tracker.lastKeyTime !== null) {
-            const gap = now - tracker.lastKeyTime
-            if (gap > 3000) tracker.idleTime += gap
+        // Window blur — catches switching to a different app
+        const onBlur = () => {
+            if (document.visibilityState === 'visible') {
+                // Only count once (visibilitychange already fires on tab switch)
+                // This catches alt-tab without hiding the tab
+                tabSwitchCountRef.current++
+                const count = tabSwitchCountRef.current
+                setTabSwitchCount(count)
+                recordTabSwitch()
+
+                if (count >= TAB_SWITCH_BLOCK_THRESHOLD) {
+                    setIsSubmissionBlocked(true)
+                    setShowWarningOverlay(true)
+                } else if (count >= TAB_SWITCH_WARNING_THRESHOLD && !bannerDismissed) {
+                    setShowWarningBanner(true)
+                }
+            }
         }
-        tracker.lastKeyTime = now
-        tracker.typingEvents.push({ t: now, type: e.key.length === 1 ? 'char' : 'ctrl' })
-    }, [])
 
-    const handlePaste = useCallback((e: React.ClipboardEvent<HTMLTextAreaElement>) => {
-        const text = e.clipboardData.getData('text')
-        const len = text.length
-        const tracker = behaviorRef.current
-        tracker.pasteEvents.push({ t: Date.now(), len })
-        if (len > tracker.largestPaste) tracker.largestPaste = len
-    }, [])
+        document.addEventListener('visibilitychange', onVisibilityChange)
+        window.addEventListener('blur', onBlur)
+
+        return () => {
+            document.removeEventListener('visibilitychange', onVisibilityChange)
+            window.removeEventListener('blur', onBlur)
+        }
+    }, [isProactive, bannerDismissed, recordTabSwitch])
+
+    // ─── Block clipboard & right-click (proactive mode only) ─────────────────
+
+    useEffect(() => {
+        if (!isProactive || submission) return
+
+        const preventDefault = (e: Event) => {
+            e.preventDefault()
+            toast.error('Clipboard access is disabled during this monitored assignment.', {
+                id: 'clipboard-blocked',
+                duration: 2000,
+            })
+        }
+
+        const blockRightClick = (e: Event) => {
+            e.preventDefault()
+        }
+
+        document.addEventListener('copy', preventDefault)
+        document.addEventListener('cut', preventDefault)
+        document.addEventListener('contextmenu', blockRightClick)
+
+        // Allow paste but record it (we intercept in handlePaste)
+        return () => {
+            document.removeEventListener('copy', preventDefault)
+            document.removeEventListener('cut', preventDefault)
+            document.removeEventListener('contextmenu', blockRightClick)
+        }
+    }, [isProactive, submission])
+
+    // ─── Text editor handlers ────────────────────────────────────────────────
+
+    const handleEssayChange = useCallback(
+        (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+            const newValue = e.target.value
+            setEssay(newValue)
+            if (isProactive) {
+                recordTextChange(newValue)
+            }
+        },
+        [isProactive, recordTextChange],
+    )
+
+    const handlePaste = useCallback(
+        (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+            if (!isProactive) return
+            const text = e.clipboardData.getData('text')
+            recordPaste(text)
+            // Note: we do NOT preventDefault here — paste is allowed, just recorded
+        },
+        [isProactive, recordPaste],
+    )
+
+    // ─── Submit ──────────────────────────────────────────────────────────────
 
     const handleSubmit = async () => {
         if (!assignment || essay.trim().length < 50 || isSubmitting) return
+        if (isSubmissionBlocked) {
+            toast.error('Submission is blocked due to excessive tab switching.')
+            return
+        }
 
         setIsSubmitting(true)
         try {
+            // Finalise the replay log before submission
+            let log: ReplayLog | undefined
+            if (isProactive && assignment.enable_behavioral) {
+                log = finalise(essay)
+                setReplayLog(log)
+            }
+
             const res = await submissionsApi.create(
-                { assignment_id: assignment.id, essay_text: essay },
+                {
+                    assignment_id: assignment.id,
+                    essay_text: essay,
+                    replay_log: log ? JSON.stringify(log) : undefined,
+                },
                 token,
             )
             if (!res.data) throw new Error('Submission failed')
@@ -116,16 +242,18 @@ export default function AssignmentWorkspace({
             setSubmission(sub)
 
             // Log behavioral telemetry (non-critical, fire and forget)
-            if (assignment.enable_behavioral) {
-                const tracker = behaviorRef.current
+            if (isProactive && assignment.enable_behavioral && log) {
                 submissionsApi.logBehavior(
                     {
                         submission_id: sub.id,
-                        typing_events: tracker.typingEvents,
-                        paste_events: tracker.pasteEvents,
-                        largest_paste: tracker.largestPaste,
-                        tab_switches: tracker.tabSwitches,
-                        idle_time: Math.round(tracker.idleTime / 1000),
+                        typing_events: [],
+                        paste_events: log.pastes.map((p) => ({
+                            t: p.t,
+                            len: p.len,
+                        })),
+                        largest_paste: log.pastes.reduce((m, p) => Math.max(m, p.len), 0),
+                        tab_switches: log.tabSwitches,
+                        idle_time: 0,
                     },
                     token,
                 ).catch(() => { /* non-critical */ })
@@ -150,6 +278,8 @@ export default function AssignmentWorkspace({
         }
     }
 
+    // ─── Socratic submit ─────────────────────────────────────────────────────
+
     const handleSocraticSubmit = async () => {
         if (!submission || socraticResponse.trim().length < 20 || isScoringResponse) return
 
@@ -169,18 +299,28 @@ export default function AssignmentWorkspace({
 
     const wordCount = essay.trim() ? essay.trim().split(/\s+/).length : 0
 
-    // ── Loading state ──────────────────────────────────────────────────────────
+    // ─── Loading state ───────────────────────────────────────────────────────
 
     if (isLoading) {
         return (
-            <div className={styles.stateBox}>
-                <div className={styles.spinner} />
-                <p className={styles.stateText}>Preparing your assignment… this may take a moment.</p>
+            <div className={styles.synthesizingBox}>
+                <div className={styles.aiPulse}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+                    </svg>
+                </div>
+                <div className={styles.loadingSteps}>
+                    <div className={styles.loadingStep}>Synthesizing Assignment</div>
+                    <p className={styles.loadingSub}>
+                        Gererating your unique academic variant and embedding integrity-protection signatures.
+                    </p>
+                </div>
+                <div className={styles.spinner} style={{ marginTop: '1rem', width: '20px', height: '20px' }} />
             </div>
         )
     }
 
-    // ── Not distributed yet ────────────────────────────────────────────────────
+    // ─── Not distributed yet ─────────────────────────────────────────────────
 
     if (!assignment) {
         return (
@@ -197,11 +337,76 @@ export default function AssignmentWorkspace({
         )
     }
 
-    // ── Main workspace ─────────────────────────────────────────────────────────
+    // ─── Render ──────────────────────────────────────────────────────────────
 
     return (
         <div className={styles.workspace}>
-            {/* Assignment prompt card */}
+
+            {/* ── Tab-switch warning banner ─────────────────────────── */}
+            {showWarningBanner && !bannerDismissed && isProactive && (
+                <div className={replayStyles.proctoringWarningBanner}>
+                    <span>
+                        ⚠ Warning: You have left this tab {tabSwitchCount} time{tabSwitchCount !== 1 ? 's' : ''}.
+                        {tabSwitchCount < TAB_SWITCH_BLOCK_THRESHOLD
+                            ? ` ${TAB_SWITCH_BLOCK_THRESHOLD - tabSwitchCount} more and your submission will be blocked.`
+                            : ' Your submission may be blocked.'}
+                    </span>
+                    <button
+                        className={replayStyles.proctoringWarningClose}
+                        onClick={() => {
+                            setShowWarningBanner(false)
+                            setBannerDismissed(true)
+                        }}
+                    >
+                        ✕
+                    </button>
+                </div>
+            )}
+
+            {/* ── Tab-switch overlay (≥3 switches) ─────────────────── */}
+            {showWarningOverlay && isProactive && (
+                <div className={replayStyles.proctoringOverlay}>
+                    {isSubmissionBlocked ? (
+                        <>
+                            <div className={replayStyles.proctoringIcon}>🚫</div>
+                            <h2 className={replayStyles.proctoringTitle}>Submission Blocked</h2>
+                            <p className={replayStyles.proctoringBody}>
+                                You have left this assignment tab <strong>{tabSwitchCount} times</strong>.
+                                Your submission has been permanently blocked due to repeated tab switching.
+                                Please contact your teacher.
+                            </p>
+                            <button
+                                className={replayStyles.proctoringBtn}
+                                onClick={() => router.push('/dashboard')}
+                            >
+                                Return to Dashboard
+                            </button>
+                        </>
+                    ) : (
+                        <>
+                            <div className={replayStyles.proctoringIcon}>⚠️</div>
+                            <h2 className={replayStyles.proctoringTitle}>Integrity Warning</h2>
+                            <p className={replayStyles.proctoringBody}>
+                                You have left this assignment tab <strong>{tabSwitchCount} times</strong>.
+                                This assignment is being monitored for academic integrity.
+                                {TAB_SWITCH_BLOCK_THRESHOLD - tabSwitchCount} more tab switch{TAB_SWITCH_BLOCK_THRESHOLD - tabSwitchCount !== 1 ? 'es' : ''} will permanently block your submission.
+                            </p>
+                            <button
+                                className={replayStyles.proctoringBtn}
+                                onClick={() => {
+                                    setShowWarningOverlay(false)
+                                    setShowWarningBanner(false)
+                                    setBannerDismissed(true)
+                                }}
+                            >
+                                I Understand — Return to Assignment
+                            </button>
+                        </>
+                    )}
+                </div>
+            )}
+
+            {/* ── Assignment prompt card ────────────────────────────── */}
             <div className={styles.promptCard}>
                 <div className={styles.promptMeta}>
                     {assignment.difficulty && (
@@ -210,6 +415,19 @@ export default function AssignmentWorkspace({
                         </span>
                     )}
                     <span className={styles.badge}>{assignment.mode}</span>
+                    {isProactive && (
+                        <span
+                            className={styles.badge}
+                            style={{ background: '#eef8f7', color: '#1a8c82' }}
+                        >
+                            🔒 Proctored
+                        </span>
+                    )}
+                    {isProactive && tabSwitchCount > 0 && (
+                        <span className={replayStyles.tabSwitchCounter}>
+                            ⚠ {tabSwitchCount} tab switch{tabSwitchCount !== 1 ? 'es' : ''}
+                        </span>
+                    )}
                 </div>
                 {assignment.topic && (
                     <h1 className={styles.promptTitle}>{assignment.topic}</h1>
@@ -217,7 +435,7 @@ export default function AssignmentWorkspace({
                 <p className={styles.promptText}>{assignment.assignment_text}</p>
             </div>
 
-            {/* Essay editor — hidden after submission */}
+            {/* ── Essay editor — hidden after submission ─────────────── */}
             {!submission && (
                 <div className={styles.editorSection}>
                     <div className={styles.editorHeader}>
@@ -227,29 +445,45 @@ export default function AssignmentWorkspace({
                     <textarea
                         className={styles.editor}
                         value={essay}
-                        onChange={(e) => setEssay(e.target.value)}
-                        onKeyDown={handleKeyDown}
+                        onChange={handleEssayChange}
                         onPaste={handlePaste}
-                        placeholder="Write your response here. Minimum 50 characters."
+                        placeholder={
+                            isProactive
+                                ? 'Write your response here. This session is monitored — pasting and tab-switching are logged.'
+                                : 'Write your response here. Minimum 50 characters.'
+                        }
                         rows={16}
-                        disabled={isSubmitting}
+                        disabled={isSubmitting || isSubmissionBlocked}
+                        spellCheck={true}
+                        autoComplete="off"
+                        autoCorrect="off"
                     />
                     <div className={styles.editorFooter}>
                         <p className={styles.editorHint}>
-                            Your response is monitored for academic integrity. Write in your own words.
+                            {isProactive
+                                ? '🔒 This session is fully proctored. Keystroke timing, paste events, and tab-switching are recorded for integrity verification.'
+                                : 'Your response is monitored for academic integrity. Write in your own words.'}
                         </p>
                         <button
                             className={styles.submitBtn}
                             onClick={handleSubmit}
-                            disabled={isSubmitting || essay.trim().length < 50}
+                            disabled={
+                                isSubmitting ||
+                                essay.trim().length < 50 ||
+                                isSubmissionBlocked
+                            }
                         >
-                            {isSubmitting ? 'Submitting…' : 'Submit Response'}
+                            {isSubmitting
+                                ? 'Submitting…'
+                                : isSubmissionBlocked
+                                    ? 'Submission Blocked'
+                                    : 'Submit Response'}
                         </button>
                     </div>
                 </div>
             )}
 
-            {/* Post-submission panel */}
+            {/* ── Post-submission panel ─────────────────────────────── */}
             {submission && (
                 <div className={styles.feedbackPanel}>
                     <div className={styles.submittedBanner}>
@@ -260,7 +494,7 @@ export default function AssignmentWorkspace({
                                 Your response has been recorded and is being evaluated.
                             </div>
                         </div>
-                        {submission.honeypot_score !== null && (
+                        {submission.honeypot_score !== null && submission.honeypot_score !== undefined && (
                             <div className={styles.scoreChip}>
                                 <span className={styles.scoreChipLabel}>Authenticity</span>
                                 <span className={styles.scoreChipValue}>
@@ -269,6 +503,30 @@ export default function AssignmentWorkspace({
                             </div>
                         )}
                     </div>
+
+                    {/* WritingDNA Replay (student view — simple playback) */}
+                    {isProactive && replayLog && (
+                        <div>
+                            <div
+                                style={{
+                                    fontFamily: 'var(--font-display)',
+                                    fontSize: '0.72rem',
+                                    fontWeight: 700,
+                                    letterSpacing: '0.2em',
+                                    textTransform: 'uppercase',
+                                    color: 'var(--muted)',
+                                    marginBottom: '0.75rem',
+                                }}
+                            >
+                                Your WritingDNA Replay
+                            </div>
+                            <CodePlayback
+                                log={replayLog}
+                                isTextMode={true}
+                                title="Your Session Replay"
+                            />
+                        </div>
+                    )}
 
                     {/* Socratic challenge section */}
                     {assignment.enable_socratic && (
@@ -296,7 +554,10 @@ export default function AssignmentWorkspace({
                                     <div className={styles.editorHeader}>
                                         <span className={styles.editorLabel}>Your Answer</span>
                                         <span className={styles.wordCount}>
-                                            {socraticResponse.trim() ? socraticResponse.trim().split(/\s+/).length : 0} words
+                                            {socraticResponse.trim()
+                                                ? socraticResponse.trim().split(/\s+/).length
+                                                : 0}{' '}
+                                            words
                                         </span>
                                     </div>
                                     <textarea
@@ -312,7 +573,10 @@ export default function AssignmentWorkspace({
                                         <button
                                             className={styles.submitBtn}
                                             onClick={handleSocraticSubmit}
-                                            disabled={isScoringResponse || socraticResponse.trim().length < 20}
+                                            disabled={
+                                                isScoringResponse ||
+                                                socraticResponse.trim().length < 20
+                                            }
                                         >
                                             {isScoringResponse ? 'Evaluating…' : 'Submit Answer'}
                                         </button>
@@ -324,11 +588,15 @@ export default function AssignmentWorkspace({
                                 <div className={styles.finalScores}>
                                     <div className={styles.scoreRow}>
                                         <span className={styles.scoreRowLabel}>Socratic Score</span>
-                                        <span className={styles.scoreRowValue}>{finalScore.socratic_score.toFixed(1)}</span>
+                                        <span className={styles.scoreRowValue}>
+                                            {finalScore.socratic_score.toFixed(1)}
+                                        </span>
                                     </div>
                                     <div className={`${styles.scoreRow} ${styles.ownershipRow}`}>
                                         <span className={styles.scoreRowLabel}>Overall Ownership Score</span>
-                                        <span className={styles.scoreRowValue}>{finalScore.ownership_score.toFixed(1)}</span>
+                                        <span className={styles.scoreRowValue}>
+                                            {finalScore.ownership_score.toFixed(1)}
+                                        </span>
                                     </div>
                                     <p className={styles.analysisText}>{finalScore.analysis}</p>
                                     {finalScore.followup && (

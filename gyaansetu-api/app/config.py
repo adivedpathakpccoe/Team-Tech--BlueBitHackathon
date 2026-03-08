@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     # App
     environment: str = "development"
     debug: bool = False
-    allowed_origins: list[str] = ["http://localhost:3000"]
+    allowed_origins: list[str] = ["https://rg89c906-3000.inc1.devtunnels.ms/"]
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
