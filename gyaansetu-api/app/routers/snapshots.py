@@ -57,10 +57,10 @@ async def push_snapshots(
 
 @router.patch("/link")
 async def link_snapshots(
+    current_user: CurrentUserDep,
+    db: DbDep,
     assignment_id: UUID = Query(...),
     submission_id: UUID = Query(...),
-    current_user: CurrentUserDep = ...,
-    db: DbDep = ...,
 ):
     """Back-fill submission_id on all saved snapshots for an assignment session.
 
