@@ -106,12 +106,17 @@ class ClassroomService(BaseService):
 
         res = await (
             self.db.table("batches")
-            .select("*")
+            .select("*, batch_members(count)")
             .eq("classroom_id", str(classroom_id))
             .order("created_at", desc=False)
             .execute()
         )
-        return res.data
+        batches = []
+        for batch in res.data:
+            members = batch.pop("batch_members", [])
+            batch["member_count"] = members[0]["count"] if members else 0
+            batches.append(batch)
+        return batches
 
     async def _create_batch_record(
         self, classroom_id: str, name: str, description: str | None
