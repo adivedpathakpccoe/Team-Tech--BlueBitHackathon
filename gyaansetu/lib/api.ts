@@ -178,9 +178,18 @@ export const assignmentsApi = {
             body: JSON.stringify(payload),
         }, token),
 
+    /** Distribute an assignment to all students in a batch (generates unique honeypot variants) */
+    distribute: (classroom_id: string, assignment_id: string, batch_id: string, token: string) =>
+        apiFetch<{ distributed_to: number; assignments: Assignment[] }>(
+            `/api/classrooms/${classroom_id}/assignments/${assignment_id}/distribute`,
+            { method: 'POST', body: JSON.stringify({ batch_id }) },
+            token,
+            120_000, // Gemini calls per student — allow up to 2 min
+        ),
+
     /** Get latest assignment for a student */
-    getForStudent: (student_id: string) =>
-        apiFetch(`/api/assignments/${student_id}`),
+    getForStudent: (student_id: string, token: string) =>
+        apiFetch(`/api/assignments/${student_id}`, {}, token),
 }
 
 // ─── Classrooms endpoints ─────────────────────────────────────────────────────

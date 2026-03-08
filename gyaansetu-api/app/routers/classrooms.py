@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends
 from app.core.deps import DbDep, TeacherDep, CurrentUserDep
 from app.core.responses import ok
 from app.models.classroom import ClassroomCreate, BatchCreate, JoinBatchRequest
-from app.models.assignment import ClassroomAssignmentCreate, ClassroomAssignmentUpdate
+from app.models.assignment import ClassroomAssignmentCreate, ClassroomAssignmentUpdate, DistributeRequest
 from app.services.classroom_service import ClassroomService
 from app.services.assignment_service import AssignmentService
 
@@ -146,3 +146,23 @@ async def update_classroom_assignment(
     update_data = body.model_dump(exclude_none=True)
     result = await svc.update_classroom_assignment(assignment_id, update_data)
     return ok(data=result, message="Assignment updated")
+
+
+@router.post("/{classroom_id}/assignments/{assignment_id}/distribute", response_model=dict, status_code=201)
+async def distribute_assignment(
+    classroom_id: UUID,
+    assignment_id: UUID,
+    body: DistributeRequest,
+    _: TeacherDep,
+    svc: AssignmentServiceDep,
+):
+    """Distribute a classroom assignment to all students in a batch.
+
+    Generates a unique honeypot-embedded variant per student via Gemini
+    and persists each one to the assignments table.
+    """
+    result = await svc.distribute(
+        classroom_assignment_id=assignment_id,
+        batch_id=body.batch_id,
+    )
+    return ok(data=result, message=f"Distributed to {result['distributed_to']} student(s)")

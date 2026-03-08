@@ -78,3 +78,8 @@ class AssignmentAIGenerateRequest(BaseModel):
     """Request for AI-assisted assignment content generation."""
     topic: str
     difficulty: Literal["easy", "medium", "hard"]
+
+
+class DistributeRequest(BaseModel):
+    """Request body for distributing a classroom assignment to a batch."""
+    batch_id: UUID
