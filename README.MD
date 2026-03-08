@@ -1,12 +1,49 @@
-Easy, run
+# Bluebit
+
+Run the full stack (frontend + backend) with a single script.
+
+## Prerequisites
+
+- Node.js 18+
+- Python 3.10+
+- `pip`
+
+## Quick Start
 
 ```bash
-# make the helper script executable the first time
+# from repository root
 chmod +x run-all.sh
-
-# then start both services:
 ./run-all.sh
 ```
 
-The script will install dependencies (npm and pip) and launch frontend (Next.js) on port 3000
-and backend (uvicorn FastAPI) on port 8000. You can also start each component manually if you prefer. 
+This script installs dependencies and starts:
+
+- Frontend (Next.js): `http://localhost:3000`
+- Backend (FastAPI/Uvicorn): `http://localhost:8000`
+
+## Run Services Manually
+
+If you want separate terminals:
+
+### Frontend
+
+```bash
+cd gyaansetu
+npm install
+npm run dev
+```
+
+### Backend
+
+```bash
+cd gyaansetu-api
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e .
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+## Notes
+
+- If `run-all.sh` is not executable, run `chmod +x run-all.sh` once.
+- If a port is already in use, stop the process using it or change the port in the launch command.
