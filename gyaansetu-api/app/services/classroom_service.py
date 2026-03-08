@@ -264,50 +264,33 @@ class ClassroomService(BaseService):
             .order("created_at", desc=True)
             .execute()
         )
+        # 3. Check submissions from both proactive and reactive submission tables
+        pro_subs_res = await (
+            self.db.table("submissions")
+            .select("assignment_id, assignments!inner(classroom_assignment_id)")
+            .eq("student_id", str(student_id))
+            .execute()
+        )
+        submitted_ca_ids: set = {s["assignments"]["classroom_assignment_id"] for s in (pro_subs_res.data or [])}
+
+        react_subs_res = await (
+            self.db.table("reactive_submissions")
+            .select("classroom_assignment_id")
+            .eq("student_id", str(student_id))
+            .execute()
+        )
+        for s in (react_subs_res.data or []):
+            submitted_ca_ids.add(s["classroom_assignment_id"])
 
         # 4. Filter: batch_ids null/empty → visible to all; otherwise must overlap
         filtered = []
         for ca in (assignments_res.data or []):
+            ca["submitted"] = ca["id"] in submitted_ca_ids
             ca_batch_ids = ca.get("batch_ids")
             if not ca_batch_ids:
                 filtered.append(ca)
             elif any(str(bid) in my_batch_ids for bid in ca_batch_ids):
                 filtered.append(ca)
-
-        if not filtered:
-            return []
-
-        # 5. Compute submitted status so the student knows what they've already done
-        ca_ids = [str(ca["id"]) for ca in filtered]
-        variants_res = await (
-            self.db.table("assignments")
-            .select("id, classroom_assignment_id")
-            .eq("student_id", str(student_id))
-            .in_("classroom_assignment_id", ca_ids)
-            .execute()
-        )
-        variant_map = {
-            v["classroom_assignment_id"]: v["id"]
-            for v in (variants_res.data or [])
-        }
-
-        submitted_ca_ids: set = set()
-        if variant_map:
-            subs_res = await (
-                self.db.table("submissions")
-                .select("assignment_id")
-                .in_("assignment_id", list(variant_map.values()))
-                .execute()
-            )
-            submitted_variant_ids = {s["assignment_id"] for s in (subs_res.data or [])}
-            submitted_ca_ids = {
-                ca_id
-                for ca_id, variant_id in variant_map.items()
-                if variant_id in submitted_variant_ids
-            }
-
-        for ca in filtered:
-            ca["submitted"] = ca["id"] in submitted_ca_ids
 
         return filtered
 

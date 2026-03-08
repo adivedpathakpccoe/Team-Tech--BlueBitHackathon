@@ -15,7 +15,7 @@ async def run_similarity(submission_id: UUID, _: CurrentUserDep, db: DbDep):
         from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="No upload found for this submission")
 
-    result = compute_similarity_score(upload_res.data["extracted_text"])
+    result = await compute_similarity_score(upload_res.data["extracted_text"])
     similarity_score = result["similarity_score"]
     ownership_score = round((1 - similarity_score) * 100, 2)
 

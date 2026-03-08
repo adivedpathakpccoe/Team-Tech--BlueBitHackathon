@@ -36,3 +36,16 @@ USING (
         AND public.classrooms.teacher_id = auth.uid()
     )
 );
+
+-- Policy: Students can see assignments in classrooms they are enrolled in
+CREATE POLICY "Students can view enrolled classroom assignments"
+ON public.classroom_assignments
+FOR SELECT
+USING (
+    EXISTS (
+        SELECT 1 FROM public.batch_members bm
+        JOIN public.batches b ON b.id = bm.batch_id
+        WHERE b.classroom_id = classroom_assignments.classroom_id
+        AND bm.student_id = auth.uid()
+    )
+);

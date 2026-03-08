@@ -1,9 +1,22 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
+import logging
 from pydantic import BaseModel, EmailStr
-from app.core.deps import DbDep, CurrentUserDep
+from typing import Annotated
+from fastapi import Depends
+from supabase import AsyncClient
+from supabase_auth.errors import AuthApiError
+from app.database import get_auth_db, get_db
+from app.core.deps import CurrentUserDep
 from app.core.responses import ok
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter()
+
+# Dependency: anon-key client for user-facing auth flows
+AuthDbDep = Annotated[AsyncClient, Depends(get_auth_db)]
+# Dependency: service-role client for admin/DB operations
+DbDep = Annotated[AsyncClient, Depends(get_db)]
 
 
 class SignUpRequest(BaseModel):
@@ -36,43 +49,61 @@ class ResetPasswordRequest(BaseModel):
 
 
 @router.post("/signup", response_model=dict, status_code=201)
-async def sign_up(body: SignUpRequest, db: DbDep):
+async def sign_up(body: SignUpRequest, db: AuthDbDep):
     """Register a new user via Supabase Auth and store profile metadata."""
-    res = await db.auth.sign_up({
-        "email": body.email,
-        "password": body.password,
-        "options": {"data": {"name": body.name, "role": body.role}},
-    })
-    return ok(data={"user_id": res.user.id}, message="Registration successful")
+    try:
+        res = await db.auth.sign_up({
+            "email": body.email,
+            "password": body.password,
+            "options": {"data": {"name": body.name, "role": body.role}},
+        })
+        return ok(data={"user_id": res.user.id}, message="Registration successful")
+    except AuthApiError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.post("/signin", response_model=dict)
-async def sign_in(body: SignInRequest, db: DbDep):
-    """Authenticate an existing user and return the Supabase session tokens."""
-    res = await db.auth.sign_in_with_password({"email": body.email, "password": body.password})
-    return ok(data={
-        "access_token": res.session.access_token,
-        "refresh_token": res.session.refresh_token,
-        "user": {"id": res.user.id, "email": res.user.email, "role": res.user.user_metadata.get("role")},
-    })
+async def sign_in(body: SignInRequest, db: AuthDbDep):
+    """Authenticate an existing user and return session tokens."""
+    logger.info("Attempting sign-in for email: %s", body.email)
+    try:
+        res = await db.auth.sign_in_with_password({"email": body.email, "password": body.password})
+        logger.info("Sign-in successful for user_id: %s", res.user.id)
+        return ok(data={
+            "access_token": res.session.access_token,
+            "refresh_token": res.session.refresh_token,
+            "user": {"id": res.user.id, "email": res.user.email, "role": res.user.user_metadata.get("role")},
+        })
+    except AuthApiError as e:
+        logger.warning("Sign-in failed for %s: %s", body.email, str(e))
+        raise HTTPException(status_code=401, detail=str(e))
+    except Exception as e:
+        logger.error("Unexpected sign-in error for %s: %s", body.email, str(e), exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error during authentication")
 
 
 @router.post("/refresh", response_model=dict)
-async def refresh_token(body: RefreshTokenRequest, db: DbDep):
+async def refresh_token(body: RefreshTokenRequest, db: AuthDbDep):
     """Refresh the access token using a valid refresh token."""
-    res = await db.auth.refresh_session(body.refresh_token)
-    return ok(data={
-        "access_token": res.session.access_token,
-        "refresh_token": res.session.refresh_token,
-        "user": {"id": res.user.id, "email": res.user.email, "role": res.user.user_metadata.get("role")},
-    })
+    try:
+        res = await db.auth.refresh_session(body.refresh_token)
+        return ok(data={
+            "access_token": res.session.access_token,
+            "refresh_token": res.session.refresh_token,
+            "user": {"id": res.user.id, "email": res.user.email, "role": res.user.user_metadata.get("role")},
+        })
+    except AuthApiError as e:
+        raise HTTPException(status_code=401, detail=str(e))
 
 
 @router.post("/forgot-password", response_model=dict)
-async def forgot_password(body: ForgotPasswordRequest, db: DbDep):
+async def forgot_password(body: ForgotPasswordRequest, db: AuthDbDep):
     """Send a password reset email to the user."""
-    await db.auth.reset_password_for_email(body.email)
-    return ok(message="Password reset email sent")
+    try:
+        await db.auth.reset_password_for_email(body.email)
+        return ok(message="Password reset email sent")
+    except AuthApiError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.post("/reset-password", response_model=dict)
@@ -98,3 +129,4 @@ async def sign_out(db: DbDep):
     """Invalidate the current Supabase session."""
     await db.auth.sign_out()
     return ok(message="Signed out")
+

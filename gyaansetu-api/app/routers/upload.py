@@ -40,6 +40,6 @@ async def upload_file(
         "submission_id": str(submission_id),
         "filename": file.filename,
         "extracted_text": extracted_text,
-    }).select().execute()
+    }).execute()
 
     return ok(data=res.data[0], message="File uploaded and text extracted")

@@ -321,9 +321,14 @@ class AssignmentService(BaseService):
 
     async def create_classroom_assignment(self, classroom_id: UUID, data: dict) -> dict:
         """Create a new classroom-level assignment record."""
+        row = {**data, "classroom_id": str(classroom_id)}
+        # Handle batch_ids: remove if None, convert UUIDs to strings if present
+        batch_ids = row.pop("batch_ids", None)
+        if batch_ids:
+            row["batch_ids"] = [str(bid) for bid in batch_ids]
         res = await (
             self.db.table("classroom_assignments")
-            .insert({**data, "classroom_id": str(classroom_id)})
+            .insert(row)
             .execute()
         )
         if not res.data:
@@ -332,6 +337,11 @@ class AssignmentService(BaseService):
 
     async def update_classroom_assignment(self, assignment_id: UUID, data: dict) -> dict:
         """Partially update a classroom-level assignment record."""
+        # Handle batch_ids: remove if None, convert UUIDs to strings if present
+        if "batch_ids" in data:
+            batch_ids = data.pop("batch_ids")
+            if batch_ids:
+                data["batch_ids"] = [str(bid) for bid in batch_ids]
         res = await (
             self.db.table("classroom_assignments")
             .update(data)
@@ -351,7 +361,7 @@ class AssignmentService(BaseService):
             .order("created_at", desc=True)
             .execute()
         )
-        return res.data
+        return res.data or []
 
     async def distribute(self, classroom_assignment_id: UUID, batch_id: UUID) -> dict:
         """Generate unique honeypot variants for every student in a batch and persist them."""
@@ -413,10 +423,9 @@ class AssignmentService(BaseService):
             .eq("student_id", str(student_id))
             .order("created_at", desc=True)
             .limit(1)
-            .maybe_single()
             .execute()
         )
-        return res.data
+        return res.data[0] if res.data else None
 
     async def get_student_variant(self, student_id: UUID, classroom_assignment_id: UUID) -> dict | None:
         """Fetch a student's specific variant for a classroom assignment, auto-generating on first access."""
@@ -444,6 +453,18 @@ class AssignmentService(BaseService):
             data["difficulty"] = ca.get("difficulty")
             data["enable_behavioral"] = ca.get("enable_behavioral", True)
             data["enable_socratic"] = ca.get("enable_socratic", True)
+            data["mode"] = ca.get("mode", "proactive")
+            
+            # Check for existing submission & socratic session
+            sub_res = await self.db.table("submissions").select("*").eq("assignment_id", data["id"]).maybe_single().execute()
+            if sub_res is not None and sub_res.data:
+                data["submission"] = sub_res.data
+                soc_res = await self.db.table("socratic_sessions").select("*").eq("submission_id", sub_res.data["id"]).maybe_single().execute()
+                if soc_res is not None and soc_res.data:
+                    data["socratic"] = soc_res.data
+                scr_res = await self.db.table("scores").select("*").eq("submission_id", sub_res.data["id"]).maybe_single().execute()
+                if scr_res is not None and scr_res.data:
+                    data["scores"] = scr_res.data
             return data
 
         # No variant yet — auto-generate on first access

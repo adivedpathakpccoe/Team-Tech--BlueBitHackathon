@@ -1,4 +1,5 @@
 from functools import lru_cache
+from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -16,14 +17,17 @@ class Settings(BaseSettings):
     # JWT
     jwt_secret: str
     jwt_algorithm: str = "HS256"
-    access_token_expire_minutes: int = 60
+    access_token_expire_minutes: int = 52560000
 
     # App
     environment: str = "development"
     debug: bool = False
     allowed_origins: list[str] = ["https://rg89c906-3000.inc1.devtunnels.ms/"]
 
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+    model_config = SettingsConfigDict(
+        env_file=Path(__file__).parent.parent / ".env",
+        env_file_encoding="utf-8"
+    )
 
 
 @lru_cache

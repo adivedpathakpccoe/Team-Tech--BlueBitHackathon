@@ -42,6 +42,16 @@ echo "[frontend] starting next dev server on port 3000..."
 npm run dev &
 frontend_pid=$!
 
+# ---------- extractor ----------
+echo "\n[extractor] installing python dependencies..."
+cd ../gyaansetu-extractor
+python -m pip install -r requirements.txt
+
+echo "[extractor] starting uvicorn (main:app) on port 8001..."
+uvicorn main:app --reload --host 0.0.0.0 --port 8001 &
+extractor_pid=$!
+
 # wait for both processes to exit
 wait $backend_pid
 wait $frontend_pid
+wait $extractor_pid

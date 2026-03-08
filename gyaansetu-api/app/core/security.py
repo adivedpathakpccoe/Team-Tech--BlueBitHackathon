@@ -51,9 +51,12 @@ async def get_user_from_token(token: str, db: AsyncClient):
     last_err = None
     for attempt in range(2):
         try:
+            start = time.perf_counter()
             res = await db.auth.get_user(token)
+            elapsed = (time.perf_counter() - start) * 1000
             user = res.user
             if user is not None:
+                logger.info("Supabase get_user success (%.1fms). Caching token.", elapsed)
                 _cache_set(token, user)
             return user
         except Exception as exc:

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { assignmentsApi, type Assignment, type AssignmentCreate } from '@/lib/api'
+import { assignmentsApi, reactiveApi, type Assignment, type AssignmentCreate, type ReactiveResultEntry, type ReactiveAnalysisResult } from '@/lib/api'
 import styles from './classroom.module.css'
 import { toast } from 'sonner'
 
@@ -24,13 +24,20 @@ export default function AssignmentSection({ classroomId, token }: { classroomId:
     const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium')
     const [mode, setMode] = useState<'proactive' | 'reactive'>('proactive')
 
-    // Detailed Controls
+    // Detailed Controls (proactive only)
     const [enableBehavioral, setEnableBehavioral] = useState(true)
     const [enableSocratic, setEnableSocratic] = useState(true)
     const [honeypotHiddenInstruction, setHoneypotHiddenInstruction] = useState(true)
     const [honeypotZeroWidth, setHoneypotZeroWidth] = useState(true)
     const [honeypotFakeFact, setHoneypotFakeFact] = useState(true)
     const [honeypotSentimentContradiction, setHoneypotSentimentContradiction] = useState(false)
+
+    // Reactive analysis state
+    const [isAnalyzing, setIsAnalyzing] = useState<string | null>(null)
+    const [analysisResults, setAnalysisResults] = useState<ReactiveAnalysisResult | null>(null)
+    const [resultsModalAssignmentId, setResultsModalAssignmentId] = useState<string | null>(null)
+    const [reactiveResults, setReactiveResults] = useState<ReactiveResultEntry[] | null>(null)
+    const [isLoadingResults, setIsLoadingResults] = useState(false)
 
     useEffect(() => {
         fetchAssignments()
@@ -57,8 +64,6 @@ export default function AssignmentSection({ classroomId, token }: { classroomId:
             }
         } catch (error) {
             console.error('Failed to fetch assignments:', error)
-            // Silence the toast if it's just a 404/not found during initial setup
-            // toast.error('Failed to load assignments')
         } finally {
             setIsLoading(false)
         }
@@ -119,12 +124,12 @@ export default function AssignmentSection({ classroomId, token }: { classroomId:
             description,
             difficulty,
             mode,
-            enable_behavioral: enableBehavioral,
+            enable_behavioral: mode === 'proactive' ? enableBehavioral : false,
             enable_socratic: enableSocratic,
-            honeypot_hidden_instruction: honeypotHiddenInstruction,
-            honeypot_zero_width: honeypotZeroWidth,
-            honeypot_fake_fact: honeypotFakeFact,
-            honeypot_sentiment_contradiction: honeypotSentimentContradiction,
+            honeypot_hidden_instruction: mode === 'proactive' ? honeypotHiddenInstruction : false,
+            honeypot_zero_width: mode === 'proactive' ? honeypotZeroWidth : false,
+            honeypot_fake_fact: mode === 'proactive' ? honeypotFakeFact : false,
+            honeypot_sentiment_contradiction: mode === 'proactive' ? honeypotSentimentContradiction : false,
             batch_ids: selectedBatchIds
         }
 
@@ -174,6 +179,7 @@ export default function AssignmentSection({ classroomId, token }: { classroomId:
     }
 
     const getActiveHoneypotCount = (a: Assignment) => {
+        if (a.mode === 'reactive') return 0
         let count = 0
         if (a.honeypot_hidden_instruction) count++
         if (a.honeypot_zero_width) count++
@@ -188,6 +194,40 @@ export default function AssignmentSection({ classroomId, token }: { classroomId:
                 ? prev.filter(id => id !== batchId)
                 : [...prev, batchId]
         )
+    }
+
+    // ── Reactive: Close & Analyze ──────────────────────────────────────────
+    const handleAnalyze = async (assignmentId: string) => {
+        setIsAnalyzing(assignmentId)
+        try {
+            toast.info('Running inter-student TF-IDF analysis...')
+            const res = await reactiveApi.analyze(assignmentId, token)
+            if (res.ok && res.data) {
+                setAnalysisResults(res.data)
+                setResultsModalAssignmentId(assignmentId)
+                toast.success(`Analysis complete! ${res.data.total_submissions} submissions compared.`)
+            }
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : 'Analysis failed')
+        } finally {
+            setIsAnalyzing(null)
+        }
+    }
+
+    // ── Reactive: View Results ─────────────────────────────────────────────
+    const handleViewResults = async (assignmentId: string) => {
+        setIsLoadingResults(true)
+        setResultsModalAssignmentId(assignmentId)
+        try {
+            const res = await reactiveApi.getResults(assignmentId, token)
+            if (res.ok && Array.isArray(res.data)) {
+                setReactiveResults(res.data)
+            }
+        } catch (error) {
+            toast.error('Failed to load results')
+        } finally {
+            setIsLoadingResults(false)
+        }
     }
 
     return (
@@ -256,15 +296,39 @@ export default function AssignmentSection({ classroomId, token }: { classroomId:
                                 {(assignment.enable_behavioral || assignment.enable_socratic) && (
                                     <div className={styles.detectionBadgeRow}>
                                         {assignment.enable_behavioral && <span className={styles.behavioralBadge}>Behavioral</span>}
-                                        {assignment.enable_socratic && <span className={styles.socraticBadge}>Socratic</span>}
+                                        {assignment.enable_socratic && <span className={styles.socraticBadge}>Socrates Engine</span>}
                                     </div>
                                 )}
-                                <button
-                                    className={styles.viewBtn}
-                                    onClick={() => router.push(`/dashboard/classroom/${classroomId}/assignment/${assignment.id}/analytics`)}
-                                >
-                                    View Detailed Analytics
-                                </button>
+                                {/* Reactive: Close & Analyze + View Results; Proactive: View Detailed Analytics */}
+                                {assignment.mode === 'reactive' ? (
+                                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                        <button
+                                            className={styles.viewBtn}
+                                            onClick={() => handleAnalyze(assignment.id)}
+                                            disabled={isAnalyzing === assignment.id}
+                                            style={{
+                                                background: isAnalyzing === assignment.id ? '#f0f0eb' : '#fef3c7',
+                                                color: '#78350f',
+                                                borderColor: '#fcd34d',
+                                            }}
+                                        >
+                                            {isAnalyzing === assignment.id ? 'Analyzing...' : '🔬 Close & Analyze'}
+                                        </button>
+                                        <button
+                                            className={styles.viewBtn}
+                                            onClick={() => handleViewResults(assignment.id)}
+                                        >
+                                            📊 View Results
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <button
+                                        className={styles.viewBtn}
+                                        onClick={() => router.push(`/dashboard/classroom/${classroomId}/assignment/${assignment.id}/analytics`)}
+                                    >
+                                        View Detailed Analytics
+                                    </button>
+                                )}
                             </div>
                         </div>
                     ))
@@ -275,6 +339,7 @@ export default function AssignmentSection({ classroomId, token }: { classroomId:
                 )}
             </div>
 
+            {/* ── Create/Edit Assignment Modal ─────────────────────────────────── */}
             {isModalOpen && (
                 <div className={styles.modalOverlay} onClick={() => setIsModalOpen(false)}>
                     <div
@@ -321,53 +386,6 @@ export default function AssignmentSection({ classroomId, token }: { classroomId:
                                 <div className={styles.previewDesc}>
                                     <span className={styles.previewLabel}>Description</span>
                                     <p>{generatedPreview.description}</p>
-                                </div>
-
-                                <div className={styles.previewTraps}>
-                                    <span className={styles.previewLabel}>Traps that will fire</span>
-                                    <div className={styles.previewTrapGrid}>
-                                        {honeypotHiddenInstruction && (
-                                            <span className={styles.previewTrapItem}>
-                                                <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10" /></svg>
-                                                Invisible Meta-Data
-                                            </span>
-                                        )}
-                                        {honeypotZeroWidth && (
-                                            <span className={styles.previewTrapItem}>
-                                                <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10" /></svg>
-                                                Zero-Width DNA
-                                            </span>
-                                        )}
-                                        {honeypotFakeFact && (
-                                            <span className={styles.previewTrapItem}>
-                                                <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10" /></svg>
-                                                Fake Fact Signal
-                                            </span>
-                                        )}
-                                        {honeypotSentimentContradiction && (
-                                            <span className={styles.previewTrapItem}>
-                                                <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10" /></svg>
-                                                Sentiment Trap
-                                            </span>
-                                        )}
-                                        {!honeypotHiddenInstruction && !honeypotZeroWidth && !honeypotFakeFact && !honeypotSentimentContradiction && (
-                                            <span style={{ fontSize: '0.75rem', color: 'rgba(219,39,119,0.5)', fontStyle: 'italic' }}>No traps enabled</span>
-                                        )}
-                                    </div>
-                                    <div className={styles.previewTrapGrid} style={{ marginTop: '0.5rem' }}>
-                                        {enableBehavioral && (
-                                            <span className={styles.previewDetectionItem}>
-                                                <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10" /></svg>
-                                                Behavioral Tracking
-                                            </span>
-                                        )}
-                                        {enableSocratic && (
-                                            <span className={styles.previewDetectionItem}>
-                                                <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10" /></svg>
-                                                Socratic Challenge
-                                            </span>
-                                        )}
-                                    </div>
                                 </div>
                             </div>
                         )}
@@ -417,27 +435,68 @@ export default function AssignmentSection({ classroomId, token }: { classroomId:
                                         onChange={(e) => setMode(e.target.value as any)}
                                     >
                                         <option value="proactive">Proactive (Real-time)</option>
-                                        <option value="reactive">Reactive (Post-submit)</option>
+                                        <option value="reactive">Reactive (Upload & Analyze)</option>
                                     </select>
                                 </div>
                             </div>
 
-                            {/* Granular Detection Controls */}
+                            {/* Mode-specific info banner */}
+                            {mode === 'reactive' && (
+                                <div style={{
+                                    background: '#fffbeb',
+                                    border: '1px solid #fcd34d',
+                                    padding: '1rem 1.25rem',
+                                    marginBottom: '1.5rem',
+                                    display: 'flex',
+                                    gap: '0.75rem',
+                                    alignItems: 'flex-start',
+                                }}>
+                                    <span style={{ fontSize: '1.2rem' }}>⏱</span>
+                                    <div>
+                                        <div style={{
+                                            fontFamily: 'var(--font-display)',
+                                            fontSize: '0.75rem',
+                                            fontWeight: 700,
+                                            textTransform: 'uppercase' as const,
+                                            letterSpacing: '0.08em',
+                                            color: '#78350f',
+                                            marginBottom: '0.3rem',
+                                        }}>
+                                            Reactive Mode
+                                        </div>
+                                        <div style={{
+                                            fontFamily: 'var(--font-body)',
+                                            fontSize: '0.8rem',
+                                            color: '#92400e',
+                                            lineHeight: 1.5,
+                                        }}>
+                                            Students will upload their completed work as files (PDF, DOCX, etc.).
+                                            After all submissions are in, click <strong>"Close & Analyze"</strong> to run
+                                            inter-student TF-IDF similarity comparison and generate combined scores.
+                                            Socratic challenges are generated on upload.
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Socratic Toggle (both modes) */}
                             <div style={{ marginBottom: '2rem' }}>
                                 <label className={styles.label} style={{ color: 'var(--teal)', borderBottom: '1px solid #eee', paddingBottom: '0.5rem', marginBottom: '1rem' }}>Detection Modules</label>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                                    <label className={styles.checkboxContainer} style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}>
-                                        <input
-                                            type="checkbox"
-                                            className={styles.checkbox}
-                                            checked={enableBehavioral}
-                                            onChange={(e) => setEnableBehavioral(e.target.checked)}
-                                        />
-                                        <div>
-                                            <div className={styles.honeypotLabel} style={{ color: '#1e293b' }}>Behavioral Tracking</div>
-                                            <div className={styles.honeypotDesc} style={{ color: '#64748b' }}>Monitor tab-switching, pasting, and typing cadence.</div>
-                                        </div>
-                                    </label>
+                                <div style={{ display: 'grid', gridTemplateColumns: mode === 'proactive' ? '1fr 1fr' : '1fr', gap: '1rem' }}>
+                                    {mode === 'proactive' && (
+                                        <label className={styles.checkboxContainer} style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                                            <input
+                                                type="checkbox"
+                                                className={styles.checkbox}
+                                                checked={enableBehavioral}
+                                                onChange={(e) => setEnableBehavioral(e.target.checked)}
+                                            />
+                                            <div>
+                                                <div className={styles.honeypotLabel} style={{ color: '#1e293b' }}>Behavioral Tracking</div>
+                                                <div className={styles.honeypotDesc} style={{ color: '#64748b' }}>Monitor tab-switching, pasting, and typing cadence.</div>
+                                            </div>
+                                        </label>
+                                    )}
                                     <label className={styles.checkboxContainer} style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}>
                                         <input
                                             type="checkbox"
@@ -446,69 +505,55 @@ export default function AssignmentSection({ classroomId, token }: { classroomId:
                                             onChange={(e) => setEnableSocratic(e.target.checked)}
                                         />
                                         <div>
-                                            <div className={styles.honeypotLabel} style={{ color: '#1e293b' }}>Socratic Challenge</div>
-                                            <div className={styles.honeypotDesc} style={{ color: '#64748b' }}>Post-submission Viva to verify conceptual ownership.</div>
+                                            <div className={styles.honeypotLabel} style={{ color: '#1e293b' }}>Socrates Engine</div>
+                                            <div className={styles.honeypotDesc} style={{ color: '#64748b' }}>
+                                                {mode === 'reactive'
+                                                    ? 'Post-upload Viva to verify the student understands their submitted work.'
+                                                    : 'Post-submission Viva to verify conceptual ownership.'}
+                                            </div>
                                         </div>
                                     </label>
                                 </div>
                             </div>
 
-                            {/* Granular Honeypot Controls */}
-                            <div style={{ marginBottom: '2rem' }}>
-                                <label className={styles.label} style={{ color: '#db2777', borderBottom: '1px solid #fce7f3', paddingBottom: '0.5rem', marginBottom: '1rem' }}>Integrity Honeypots (Traps)</label>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                                    <label className={styles.checkboxContainer}>
-                                        <input
-                                            type="checkbox"
-                                            className={styles.checkbox}
-                                            checked={honeypotHiddenInstruction}
-                                            onChange={(e) => setHoneypotHiddenInstruction(e.target.checked)}
-                                        />
-                                        <div>
-                                            <div className={styles.honeypotLabel}>Invisible Meta-Data</div>
-                                            <div className={styles.honeypotDesc}>Hidden CSS instructions that only AI models will follow.</div>
-                                        </div>
-                                    </label>
-                                    <label className={styles.checkboxContainer}>
-                                        <input
-                                            type="checkbox"
-                                            className={styles.checkbox}
-                                            checked={honeypotZeroWidth}
-                                            onChange={(e) => setHoneypotZeroWidth(e.target.checked)}
-                                        />
-                                        <div>
-                                            <div className={styles.honeypotLabel}>Zero-Width DNA</div>
-                                            <div className={styles.honeypotDesc}>Unique per-student encoding to detect sharing/injection.</div>
-                                        </div>
-                                    </label>
-                                    <label className={styles.checkboxContainer}>
-                                        <input
-                                            type="checkbox"
-                                            className={styles.checkbox}
-                                            checked={honeypotFakeFact}
-                                            onChange={(e) => setHoneypotFakeFact(e.target.checked)}
-                                        />
-                                        <div>
-                                            <div className={styles.honeypotLabel}>Deliberate Fake Fact</div>
-                                            <div className={styles.honeypotDesc}>Injected subtle error to catch AI prompt engineering.</div>
-                                        </div>
-                                    </label>
-                                    <label className={styles.checkboxContainer}>
-                                        <input
-                                            type="checkbox"
-                                            className={styles.checkbox}
-                                            checked={honeypotSentimentContradiction}
-                                            onChange={(e) => setHoneypotSentimentContradiction(e.target.checked)}
-                                        />
-                                        <div>
-                                            <div className={styles.honeypotLabel}>Sentiment Trap</div>
-                                            <div className={styles.honeypotDesc}>Hidden contradictory stance to test LLM alignment.</div>
-                                        </div>
-                                    </label>
+                            {/* Honeypot Controls — proactive only */}
+                            {mode === 'proactive' && (
+                                <div style={{ marginBottom: '2rem' }}>
+                                    <label className={styles.label} style={{ color: '#db2777', borderBottom: '1px solid #fce7f3', paddingBottom: '0.5rem', marginBottom: '1rem' }}>Integrity Honeypots (Traps)</label>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                                        <label className={styles.checkboxContainer}>
+                                            <input type="checkbox" className={styles.checkbox} checked={honeypotHiddenInstruction} onChange={(e) => setHoneypotHiddenInstruction(e.target.checked)} />
+                                            <div>
+                                                <div className={styles.honeypotLabel}>Invisible Meta-Data</div>
+                                                <div className={styles.honeypotDesc}>Hidden CSS instructions that only AI models will follow.</div>
+                                            </div>
+                                        </label>
+                                        <label className={styles.checkboxContainer}>
+                                            <input type="checkbox" className={styles.checkbox} checked={honeypotZeroWidth} onChange={(e) => setHoneypotZeroWidth(e.target.checked)} />
+                                            <div>
+                                                <div className={styles.honeypotLabel}>Zero-Width DNA</div>
+                                                <div className={styles.honeypotDesc}>Unique per-student encoding to detect sharing/injection.</div>
+                                            </div>
+                                        </label>
+                                        <label className={styles.checkboxContainer}>
+                                            <input type="checkbox" className={styles.checkbox} checked={honeypotFakeFact} onChange={(e) => setHoneypotFakeFact(e.target.checked)} />
+                                            <div>
+                                                <div className={styles.honeypotLabel}>Deliberate Fake Fact</div>
+                                                <div className={styles.honeypotDesc}>Injected subtle error to catch AI prompt engineering.</div>
+                                            </div>
+                                        </label>
+                                        <label className={styles.checkboxContainer}>
+                                            <input type="checkbox" className={styles.checkbox} checked={honeypotSentimentContradiction} onChange={(e) => setHoneypotSentimentContradiction(e.target.checked)} />
+                                            <div>
+                                                <div className={styles.honeypotLabel}>Sentiment Trap</div>
+                                                <div className={styles.honeypotDesc}>Hidden contradictory stance to test LLM alignment.</div>
+                                            </div>
+                                        </label>
+                                    </div>
                                 </div>
-                            </div>
+                            )}
 
-                            {/* Batch Selection for Visibility */}
+                            {/* Batch Selection */}
                             <div style={{ marginBottom: '2rem' }}>
                                 <label className={styles.label} style={{ color: '#6366f1', borderBottom: '1px solid #e0e7ff', paddingBottom: '0.5rem', marginBottom: '1rem' }}>Assign to Batches</label>
                                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '0.75rem', maxHeight: '150px', overflowY: 'auto', padding: '0.5rem' }}>
@@ -558,6 +603,212 @@ export default function AssignmentSection({ classroomId, token }: { classroomId:
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* ── Analysis Results Modal ──────────────────────────────────────── */}
+            {resultsModalAssignmentId && (analysisResults || reactiveResults) && (
+                <div className={styles.modalOverlay} onClick={() => { setResultsModalAssignmentId(null); setAnalysisResults(null); setReactiveResults(null) }}>
+                    <div
+                        className={styles.modal}
+                        style={{ maxWidth: '850px', maxHeight: '90vh', overflowY: 'auto' }}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <h3 className={styles.modalTitle}>
+                            📊 Reactive Analysis Results
+                        </h3>
+
+                        {/* From analyze endpoint */}
+                        {analysisResults && (
+                            <>
+                                <div style={{
+                                    display: 'grid',
+                                    gridTemplateColumns: '1fr 1fr',
+                                    gap: '1rem',
+                                    marginBottom: '2rem',
+                                }}>
+                                    <div style={{
+                                        background: '#f0fdf4',
+                                        border: '1px solid #86efac',
+                                        padding: '1.25rem',
+                                        textAlign: 'center',
+                                    }}>
+                                        <div style={{ fontFamily: 'var(--font-display)', fontSize: '2rem', fontWeight: 700, color: '#059669' }}>
+                                            {analysisResults.total_submissions}
+                                        </div>
+                                        <div style={{ fontFamily: 'var(--font-display)', fontSize: '0.65rem', fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: '0.1em', color: '#064e3b' }}>
+                                            Total Submissions
+                                        </div>
+                                    </div>
+                                    <div style={{
+                                        background: analysisResults.flagged_pairs.length > 0 ? '#fef2f2' : '#f0fdf4',
+                                        border: `1px solid ${analysisResults.flagged_pairs.length > 0 ? '#fca5a5' : '#86efac'}`,
+                                        padding: '1.25rem',
+                                        textAlign: 'center',
+                                    }}>
+                                        <div style={{ fontFamily: 'var(--font-display)', fontSize: '2rem', fontWeight: 700, color: analysisResults.flagged_pairs.length > 0 ? '#dc2626' : '#059669' }}>
+                                            {analysisResults.flagged_pairs.length}
+                                        </div>
+                                        <div style={{ fontFamily: 'var(--font-display)', fontSize: '0.65rem', fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: '0.1em', color: analysisResults.flagged_pairs.length > 0 ? '#991b1b' : '#064e3b' }}>
+                                            Flagged Pairs (≥60% similarity)
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Flagged Pairs */}
+                                {analysisResults.flagged_pairs.length > 0 && (
+                                    <div style={{ marginBottom: '2rem' }}>
+                                        <label className={styles.label} style={{ color: '#dc2626', borderBottom: '1px solid #fecaca', paddingBottom: '0.5rem', marginBottom: '1rem' }}>
+                                            ⚠️ Flagged Similar Pairs
+                                        </label>
+                                        {analysisResults.flagged_pairs.map((pair, idx) => (
+                                            <div key={idx} style={{
+                                                display: 'flex',
+                                                justifyContent: 'space-between',
+                                                alignItems: 'center',
+                                                padding: '0.75rem 1rem',
+                                                background: '#fef2f2',
+                                                border: '1px solid #fecaca',
+                                                marginBottom: '0.5rem',
+                                                fontFamily: 'var(--font-body)',
+                                                fontSize: '0.85rem',
+                                            }}>
+                                                <span>
+                                                    Student <code style={{ background: '#fee2e2', padding: '0.1rem 0.3rem' }}>{pair.student_a.slice(0, 8)}…</code>
+                                                    {' ↔ '}
+                                                    Student <code style={{ background: '#fee2e2', padding: '0.1rem 0.3rem' }}>{pair.student_b.slice(0, 8)}…</code>
+                                                </span>
+                                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.2rem' }}>
+                                                    <span style={{
+                                                        fontFamily: 'var(--font-display)',
+                                                        fontWeight: 700,
+                                                        color: '#dc2626',
+                                                        fontSize: '1.1rem',
+                                                    }}>
+                                                        {(pair.similarity * 100).toFixed(1)}%
+                                                    </span>
+                                                    <span style={{
+                                                        fontSize: '0.6rem',
+                                                        fontWeight: 700,
+                                                        textTransform: 'uppercase' as const,
+                                                        letterSpacing: '0.05em',
+                                                        padding: '0.1rem 0.4rem',
+                                                        background: pair.method_signal === 'semantic' ? '#e0e7ff' : '#f0fdf4',
+                                                        color: pair.method_signal === 'semantic' ? '#4338ca' : '#166534',
+                                                        borderRadius: '4px',
+                                                    }}>
+                                                        {pair.method_signal}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+
+                                {/* Per-student results */}
+                                <label className={styles.label} style={{ borderBottom: '1px solid #eee', paddingBottom: '0.5rem', marginBottom: '1rem' }}>
+                                    Per-Student Scores
+                                </label>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                    {analysisResults.results.map((r) => (
+                                        <div key={r.submission_id} style={{
+                                            display: 'grid',
+                                            gridTemplateColumns: '2fr 1fr 1fr 1fr',
+                                            gap: '1rem',
+                                            padding: '0.75rem 1rem',
+                                            background: 'white',
+                                            border: '1px solid var(--border-dark)',
+                                            alignItems: 'center',
+                                            fontFamily: 'var(--font-body)',
+                                            fontSize: '0.8rem',
+                                        }}>
+                                            <div>
+                                                <div style={{ fontWeight: 600, marginBottom: '0.2rem' }}>{r.filename || 'Unknown'}</div>
+                                                <div style={{ color: 'var(--muted)', fontSize: '0.7rem' }}>{r.student_id.slice(0, 8)}…</div>
+                                            </div>
+                                            <div style={{ textAlign: 'center' }}>
+                                                <div style={{ fontFamily: 'var(--font-display)', fontSize: '0.65rem', fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: '0.06em', color: 'var(--muted)', marginBottom: '0.15rem' }}>TF-IDF</div>
+                                                <div style={{ fontWeight: 700, color: r.tfidf_originality < 60 ? '#dc2626' : '#059669' }}>{r.tfidf_originality.toFixed(1)}</div>
+                                            </div>
+                                            <div style={{ textAlign: 'center' }}>
+                                                <div style={{ fontFamily: 'var(--font-display)', fontSize: '0.65rem', fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: '0.06em', color: 'var(--muted)', marginBottom: '0.15rem' }}>Socratic</div>
+                                                <div style={{ fontWeight: 700, color: r.socratic_score < 50 ? '#dc2626' : '#059669' }}>{r.socratic_score.toFixed(1)}</div>
+                                            </div>
+                                            <div style={{ textAlign: 'center' }}>
+                                                <div style={{ fontFamily: 'var(--font-display)', fontSize: '0.65rem', fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: '0.06em', color: 'var(--teal)', marginBottom: '0.15rem' }}>Ownership</div>
+                                                <div style={{ fontWeight: 700, fontSize: '1.1rem', color: r.ownership_score < 50 ? '#dc2626' : 'var(--teal)' }}>{r.ownership_score.toFixed(1)}</div>
+                                                <div style={{ fontSize: '0.55rem', fontWeight: 700, color: 'var(--muted)', marginTop: '0.1rem', textTransform: 'uppercase' as const }}>{r.similarity_method}</div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </>
+                        )}
+
+                        {/* From results endpoint */}
+                        {reactiveResults && !analysisResults && (
+                            <>
+                                {isLoadingResults ? (
+                                    <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--muted)' }}>Loading results...</div>
+                                ) : reactiveResults.length === 0 ? (
+                                    <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--muted)' }}>
+                                        No submissions yet. Run "Close & Analyze" after students have submitted.
+                                    </div>
+                                ) : (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                        {reactiveResults.map((r) => (
+                                            <div key={r.submission_id} style={{
+                                                display: 'grid',
+                                                gridTemplateColumns: '2fr 1fr 1fr 1fr',
+                                                gap: '1rem',
+                                                padding: '0.75rem 1rem',
+                                                background: 'white',
+                                                border: '1px solid var(--border-dark)',
+                                                alignItems: 'center',
+                                                fontFamily: 'var(--font-body)',
+                                                fontSize: '0.8rem',
+                                            }}>
+                                                <div>
+                                                    <div style={{ fontWeight: 600, marginBottom: '0.2rem' }}>{r.student_name}</div>
+                                                    <div style={{ color: 'var(--muted)', fontSize: '0.7rem' }}>{r.filename}</div>
+                                                </div>
+                                                {r.scores ? (
+                                                    <>
+                                                        <div style={{ textAlign: 'center' }}>
+                                                            <div style={{ fontFamily: 'var(--font-display)', fontSize: '0.65rem', fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: '0.06em', color: 'var(--muted)', marginBottom: '0.15rem' }}>TF-IDF</div>
+                                                            <div style={{ fontWeight: 700, color: r.scores.tfidf_originality < 60 ? '#dc2626' : '#059669' }}>{r.scores.tfidf_originality.toFixed(1)}</div>
+                                                        </div>
+                                                        <div style={{ textAlign: 'center' }}>
+                                                            <div style={{ fontFamily: 'var(--font-display)', fontSize: '0.65rem', fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: '0.06em', color: 'var(--muted)', marginBottom: '0.15rem' }}>Socrates Engine</div>
+                                                            <div style={{ fontWeight: 700, color: r.scores.socratic_score < 50 ? '#dc2626' : '#059669' }}>{r.scores.socratic_score.toFixed(1)}</div>
+                                                        </div>
+                                                        <div style={{ textAlign: 'center' }}>
+                                                            <div style={{ fontFamily: 'var(--font-display)', fontSize: '0.65rem', fontWeight: 600, textTransform: 'uppercase' as const, letterSpacing: '0.06em', color: 'var(--teal)', marginBottom: '0.15rem' }}>Ownership</div>
+                                                            <div style={{ fontWeight: 700, fontSize: '1.1rem', color: r.scores.ownership_score < 50 ? '#dc2626' : 'var(--teal)' }}>{r.scores.ownership_score.toFixed(1)}</div>
+                                                        </div>
+                                                    </>
+                                                ) : (
+                                                    <div style={{ gridColumn: 'span 3', textAlign: 'center', color: 'var(--muted)', fontSize: '0.75rem' }}>
+                                                        Not yet analyzed — run "Close & Analyze"
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </>
+                        )}
+
+                        <div className={styles.modalActions} style={{ marginTop: '2rem' }}>
+                            <button
+                                type="button"
+                                className={styles.submitBtn}
+                                onClick={() => { setResultsModalAssignmentId(null); setAnalysisResults(null); setReactiveResults(null) }}
+                            >
+                                Close
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

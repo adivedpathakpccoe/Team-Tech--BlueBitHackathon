@@ -40,6 +40,7 @@ export default function StudentSection({ token, initialBatches }: { token: strin
     const [isJoining, setIsJoining] = useState(false)
     const [expandedBatchId, setExpandedBatchId] = useState<string | null>(null)
     const [extractingId, setExtractingId] = useState<string | null>(null)
+    const [extractedContent, setExtractedContent] = useState<{ filename: string, content: string } | null>(null)
     const fileInputRef = useRef<HTMLInputElement>(null)
     const activeAssignmentRef = useRef<string | null>(null)
 
@@ -66,11 +67,12 @@ export default function StudentSection({ token, initialBatches }: { token: strin
     }, [token])
 
     useEffect(() => {
-        // Always re-fetch from the API on mount so we have fresh data regardless
-        // of whether the server-side prop was populated.  The initialBatches prop
-        // is only used as the initial state to avoid the loading flicker.
-        fetchMyBatches()
-    }, [fetchMyBatches])
+        if (!initialBatches || initialBatches.length === 0) {
+            fetchMyBatches()
+        } else {
+            setIsLoading(false)
+        }
+    }, [fetchMyBatches, initialBatches])
 
     // ── Fetch assignments for a batch when expanded ─────────────────────────
 
@@ -250,7 +252,9 @@ export default function StudentSection({ token, initialBatches }: { token: strin
                                                         className={`${styles.assignmentRow} ${a.mode === 'reactive' ? styles.assignmentRowReactive : ''}`}
                                                         style={{
                                                             cursor: a.mode === 'proactive' ? 'pointer' : 'default',
-                                                        }}
+                                                            // Remove hover effect for reactive
+                                                            '--row-hover-border': a.mode === 'proactive' ? 'var(--teal)' : 'var(--border-dark)'
+                                                        } as any}
                                                         onClick={() => {
                                                             if (a.mode === 'proactive') {
                                                                 router.push(`/dashboard/assignment/${a.id}`)
@@ -262,6 +266,7 @@ export default function StudentSection({ token, initialBatches }: { token: strin
                                                                 {a.topic}
                                                             </div>
                                                             <div className={styles.assignmentBadges}>
+                                                                {/* Only show difficulty and open badge for proactive */}
                                                                 {a.mode === 'proactive' && (
                                                                     <>
                                                                         <span
@@ -278,7 +283,7 @@ export default function StudentSection({ token, initialBatches }: { token: strin
                                                                     {a.mode}
                                                                 </span>
                                                                 {a.submitted && (
-                                                                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', color: '#10b981', fontWeight: 600 }}>
+                                                                    <span className={styles.submittedTick} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', color: '#10b981', fontWeight: 600 }}>
                                                                         <svg viewBox="0 0 20 20" fill="currentColor" style={{ width: '14px', height: '14px' }}>
                                                                             <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                                                                         </svg>
@@ -296,23 +301,47 @@ export default function StudentSection({ token, initialBatches }: { token: strin
 
                                                         {a.mode === 'reactive' && (
                                                             <div className={styles.assignmentActions} onClick={(e) => e.stopPropagation()}>
-                                                                <button
-                                                                    className={styles.uploadBtn}
-                                                                    onClick={() => triggerFileInput(a.id)}
-                                                                    disabled={extractingId === a.id}
-                                                                >
-                                                                    {extractingId === a.id ? (
-                                                                        <>
-                                                                            <span className={styles.spinnerIcon} /> Extracting...
-                                                                        </>
-                                                                    ) : (
-                                                                        <>
-                                                                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" x2="12" y1="3" y2="15" /></svg>
-                                                                            Upload Submission
-                                                                        </>
-                                                                    )}
-                                                                </button>
-                                                                <span className={styles.uploadHint}>Supporting PDF, DOCX, PPTX, etc.</span>
+                                                                {a.submitted ? (
+                                                                    <button
+                                                                        className={styles.viewWorkspaceBtn}
+                                                                        onClick={() => router.push(`/dashboard/assignment/${a.id}`)}
+                                                                        style={{
+                                                                            display: 'flex',
+                                                                            alignItems: 'center',
+                                                                            gap: '6px',
+                                                                            padding: '0.4rem 0.8rem',
+                                                                            fontSize: '0.75rem',
+                                                                            fontWeight: 600,
+                                                                            textTransform: 'uppercase',
+                                                                            letterSpacing: '0.05em',
+                                                                            background: 'white',
+                                                                            border: '1px solid #e5e7eb',
+                                                                            borderRadius: '6px',
+                                                                            color: '#374151',
+                                                                            cursor: 'pointer'
+                                                                        }}
+                                                                    >
+                                                                        View Submission
+                                                                    </button>
+                                                                ) : (
+                                                                    <button
+                                                                        className={styles.uploadBtn}
+                                                                        onClick={() => triggerFileInput(a.id)}
+                                                                        disabled={extractingId === a.id}
+                                                                    >
+                                                                        {extractingId === a.id ? (
+                                                                            <>
+                                                                                <span className={styles.spinnerIcon} /> Processing...
+                                                                            </>
+                                                                        ) : (
+                                                                            <>
+                                                                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" x2="12" y1="3" y2="15" /></svg>
+                                                                                Upload Submission
+                                                                            </>
+                                                                        )}
+                                                                    </button>
+                                                                )}
+                                                                {!a.submitted && <span className={styles.uploadHint}>Supporting PDF, DOCX, PPTX, etc.</span>}
                                                             </div>
                                                         )}
                                                     </div>
@@ -387,6 +416,35 @@ export default function StudentSection({ token, initialBatches }: { token: strin
                     e.target.value = '' // Reset
                 }}
             />
+
+            {/* Extracted Content Modal */}
+            {extractedContent && (
+                <div className={styles.modalOverlay} onClick={() => setExtractedContent(null)}>
+                    <div
+                        className={`${styles.modal} ${styles.extractionModal}`}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className={styles.modalHeader}>
+                            <h3 className={styles.modalTitle}>Extraction Result</h3>
+                            <div className={styles.extractionFilename}>{extractedContent.filename}</div>
+                        </div>
+
+                        <div className={styles.extractionContent}>
+                            <pre className={styles.preContent}>{extractedContent.content}</pre>
+                        </div>
+
+                        <div className={styles.modalActions}>
+                            <button
+                                type="button"
+                                className={styles.submitBtn}
+                                onClick={() => setExtractedContent(null)}
+                            >
+                                Done
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </section>
     )
 }
