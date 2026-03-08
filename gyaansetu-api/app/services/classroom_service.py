@@ -199,14 +199,7 @@ class ClassroomService(BaseService):
 
     async def get_classroom_assignments_for_student(self, student_id: UUID, classroom_id: UUID) -> list:
         """Return classroom assignments for a classroom the student is enrolled in."""
-        # Verify student is in at least one batch in this classroom
-        check = await (
-            self.db.table("batch_members")
-            .select("batches(classroom_id)", count="exact", head=True)
-            .eq("student_id", str(student_id))
-            .execute()
-        )
-        # Fetch all batch classroom_ids the student belongs to
+        # Fetch all batch classroom_ids the student belongs to (single query)
         batches_res = await (
             self.db.table("batch_members")
             .select("batches(classroom_id)")

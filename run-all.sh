@@ -24,8 +24,13 @@ cd gyaansetu-api
 python -m pip install -e ".[dev]"
 
 echo "[backend] starting uvicorn (app.main:app) on port 8000..."
-# run in background so frontend can start too
-uvicorn app.main:app --reload &
+# Use --workers for production (port-forwarded) use, --reload for dev.
+# Set GYAANSETU_DEV=1 to enable hot-reload (single worker only).
+if [ "${GYAANSETU_DEV:-0}" = "1" ]; then
+    uvicorn app.main:app --reload --host 0.0.0.0 --port 8000 &
+else
+    uvicorn app.main:app --workers 4 --host 0.0.0.0 --port 8000 &
+fi
 backend_pid=$!
 
 # ---------- frontend ----------

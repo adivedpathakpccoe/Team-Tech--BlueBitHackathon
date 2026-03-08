@@ -280,9 +280,9 @@ export const studentApi = {
     getAssignmentsForClassroom: (classroom_id: string, token: string) =>
         apiFetch<Assignment[]>(`/api/student/classrooms/${classroom_id}/assignments`, {}, token),
 
-    /** Get the student's unique distributed variant for a classroom assignment */
+    /** Get the student's unique distributed variant for a classroom assignment (auto-generates on first access) */
     getMyAssignmentVariant: (classroom_assignment_id: string, token: string) =>
-        apiFetch<StudentAssignment>(`/api/student/assignments/${classroom_assignment_id}`, {}, token),
+        apiFetch<StudentAssignment>(`/api/student/assignments/${classroom_assignment_id}`, {}, token, 90_000),
 }
 
 // ─── Submissions endpoints ────────────────────────────────────────────────────
