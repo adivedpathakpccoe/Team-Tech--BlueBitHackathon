@@ -45,13 +45,13 @@ export default function FeaturesSection() {
     return (
         <section className={styles.section}>
             <div className={styles.header}>
-                <SectionLabel text="Intelligence Modules" />
+                <SectionLabel text="Core Intelligence Modules" />
                 <h2 className={styles.title}>
-                    Five Layers<br />of Detection
+                    Multi-Layered<br />Protection
                 </h2>
                 <p className={styles.desc}>
-                    Each module operates independently and in concert — a layered defense architecture
-                    that closes every known evasion vector simultaneously.
+                    Our modular architecture combines independent verification layers to ensure
+                    the highest standards of academic integrity.
                 </p>
             </div>
             <div className={styles.list}>

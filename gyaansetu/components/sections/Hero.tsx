@@ -8,21 +8,21 @@ export default function Hero() {
 
             <div className={styles.eyebrow}>
                 <span className={styles.eyebrowLine} />
-                INTELLIGENCE DOSSIER — REF: GS-2026-ALPHA
+                SECURE ACADEMIC INFRASTRUCTURE — GEN-2026.04
             </div>
 
             <h1 className={styles.headline}>
-                Academic<br />Integrity<br />Re-Defined.
+                Academic<br />Trust<br />Re-Imagined.
             </h1>
 
             <p className={styles.subheadline}>
-                When the era of effortless deception ends.
+                Integrity as a Service.
             </p>
 
             <p className={styles.desc}>
-                GYAANSETU is a multi-modal academic integrity intelligence system — detecting
-                plagiarism, AI-generated content, proctoring violations, and cross-institutional
-                fraud at the moment they occur. Not after. Now.
+                GYAANSETU is a high-fidelity academic integrity intelligence system —
+                authenticating submissions through authorship fingerprinting, semantic coherence,
+                and proctoring biometrics. Comprehensive trust for the AI era.
             </p>
 
             <div className={styles.actions}>
@@ -36,7 +36,7 @@ export default function Hero() {
 
             <div className={styles.statusBadge} style={{ marginTop: '3rem' }}>
                 <span className={styles.dot} />
-                LIVE THREAT MONITORING — 4,200+ INSTITUTIONS PROTECTED
+                REAL-TIME MONITORING — 4,200+ INSTITUTIONS PROTECTED
             </div>
         </section>
     )

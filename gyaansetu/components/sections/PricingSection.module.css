@@ -7,8 +7,12 @@
 }
 
 .header {
-    max-width: 620px;
-    margin-bottom: 4rem;
+    max-width: 800px;
+    margin: 0 auto 5rem;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
 }
 
 .title {
@@ -23,7 +27,7 @@
 
 .desc {
     font-family: var(--font-body);
-    font-size: 0.88rem;
+    font-size: 1rem;
     color: rgba(8, 8, 6, 0.55);
     line-height: 1.7;
     margin-bottom: 2rem;
@@ -39,10 +43,10 @@
 
 .toggleBtn {
     font-family: var(--font-display);
-    font-size: 0.7rem;
+    font-size: 0.85rem;
     letter-spacing: 0.25em;
     text-transform: uppercase;
-    padding: 0.6rem 1.4rem;
+    padding: 0.8rem 1.6rem;
     color: rgba(8, 8, 6, 0.45);
     background: transparent;
     cursor: pointer;
@@ -60,12 +64,12 @@
 
 .save {
     font-family: var(--font-body);
-    font-size: 0.5rem;
+    font-size: 0.65rem;
     letter-spacing: 0.2em;
     text-transform: uppercase;
     color: var(--teal);
     background: rgba(26, 140, 130, 0.15);
-    padding: 0.15rem 0.4rem;
+    padding: 0.2rem 0.6rem;
 }
 
 .grid {

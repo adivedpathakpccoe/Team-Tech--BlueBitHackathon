@@ -5,24 +5,24 @@ import styles from './ProblemSection.module.css'
 
 const problems = [
     {
-        tag: 'THREAT ALPHA',
+        tag: 'VECTOR I',
         title: 'AI Content Generation',
-        body: 'Students deploy GPT-class models to produce undetectable essays, code, and research. Existing systems rely on surface-level heuristics that fail to model linguistic topology.',
+        body: 'Students deploy GPT-class models to produce increasingly complex essays, code, and research. Standard detection methods fail to model the deep linguistic patterns of modern LLMs.',
     },
     {
-        tag: 'THREAT BETA',
-        title: 'Cross-Institutional Plagiarism',
-        body: 'Submission databases are siloed. Identical or near-identical manuscripts pass undetected across institutional boundaries — a systemic blind spot exploited at scale.',
+        tag: 'VECTOR II',
+        title: 'Cross-Institutional Reuse',
+        body: 'Submission databases are often siloed. Identical manuscripts can pass undetected across institutional boundaries — a systemic blind spot in academic integrity.',
     },
     {
-        tag: 'THREAT GAMMA',
+        tag: 'VECTOR III',
         title: 'Proctoring Evasion',
-        body: 'Advanced evasion techniques — second devices, OBS virtual cameras, screen mirroring — render conventional webcam-based proctoring ineffective without behavioral biometrics.',
+        body: 'Advanced evasion techniques — second devices and virtual cameras — render conventional proctoring ineffective without deep behavioral biometric analysis.',
     },
     {
-        tag: 'THREAT DELTA',
-        title: 'Identity Fraud',
-        body: 'Contract cheating services operate openly. Ghost-writing networks and exam-taking mercenaries produce audit-proof submissions that leave no forensic trail in standard systems.',
+        tag: 'VECTOR IV',
+        title: 'Contract Fraud',
+        body: 'Global contract cheating services produce customized submissions that leave no forensic trail in standard plagiarism systems, requiring multi-layered verification.',
     },
 ]
 
@@ -30,13 +30,13 @@ export default function ProblemSection() {
     return (
         <section className={styles.section} id="solutions">
             <div className={styles.header}>
-                <SectionLabel text="Threat Assessment" />
+                <SectionLabel text="Integrity Challenges" />
                 <h2 className={styles.title}>
-                    The Four<br />Threat Vectors
+                    Core Research<br />Vectors
                 </h2>
                 <p className={styles.desc}>
-                    Academic integrity is under a coordinated, multi-vector assault. Understanding the threat
-                    topology is the first step to deploying effective countermeasures.
+                    Academic integrity faces a multi-dimensional challenge. Understanding these
+                    underlying vectors is the first step toward building a sustainable culture of trust.
                 </p>
             </div>
             <div className={styles.grid}>

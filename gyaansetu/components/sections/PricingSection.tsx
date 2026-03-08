@@ -8,7 +8,7 @@ import styles from './PricingSection.module.css'
 const plans = {
     monthly: [
         {
-            tier: '// Tier 01',
+            tier: 'Level 01',
             name: 'Observer',
             price: '$299',
             period: 'per month / per department',
@@ -20,10 +20,10 @@ const plans = {
                 'Email support (48h SLA)',
             ],
             featured: false,
-            cta: 'Start Observer',
+            cta: 'Get Started',
         },
         {
-            tier: '// Tier 02',
+            tier: 'Level 02',
             name: 'Sentinel',
             price: '$799',
             period: 'per month / institution-wide',
@@ -34,31 +34,31 @@ const plans = {
                 'ProctorCore™ live proctoring',
                 'API + LMS integration',
                 'Priority support (4h SLA)',
-                'Quarterly threat briefing',
+                'Quarterly trust briefing',
             ],
             featured: true,
-            cta: 'Deploy Sentinel',
+            cta: 'Select Plan',
         },
         {
-            tier: '// Tier 03',
+            tier: 'Level 03',
             name: 'Command',
             price: 'Custom',
             period: 'per contract / multi-institution',
             features: [
                 'Multi-campus federated deployment',
                 'Custom model fine-tuning',
-                'Dedicated intelligence analyst',
+                'Dedicated integrity analyst',
                 'On-premise deployment option',
                 'SLA: 99.9% uptime guarantee',
                 'White-label licensing',
             ],
             featured: false,
-            cta: 'Contact Command',
+            cta: 'Contact Sales',
         },
     ],
     annual: [
         {
-            tier: '// Tier 01',
+            tier: 'Level 01',
             name: 'Observer',
             price: '$239',
             period: 'per month, billed annually',
@@ -70,10 +70,10 @@ const plans = {
                 'Email support (48h SLA)',
             ],
             featured: false,
-            cta: 'Start Observer',
+            cta: 'Get Started',
         },
         {
-            tier: '// Tier 02',
+            tier: 'Level 02',
             name: 'Sentinel',
             price: '$639',
             period: 'per month, billed annually',
@@ -84,26 +84,26 @@ const plans = {
                 'ProctorCore™ live proctoring',
                 'API + LMS integration',
                 'Priority support (4h SLA)',
-                'Quarterly threat briefing',
+                'Quarterly trust briefing',
             ],
             featured: true,
-            cta: 'Deploy Sentinel',
+            cta: 'Select Plan',
         },
         {
-            tier: '// Tier 03',
+            tier: 'Level 03',
             name: 'Command',
             price: 'Custom',
             period: 'per contract / multi-institution',
             features: [
                 'Multi-campus federated deployment',
                 'Custom model fine-tuning',
-                'Dedicated intelligence analyst',
+                'Dedicated integrity analyst',
                 'On-premise deployment option',
                 'SLA: 99.9% uptime guarantee',
                 'White-label licensing',
             ],
             featured: false,
-            cta: 'Contact Command',
+            cta: 'Contact Sales',
         },
     ],
 }
@@ -114,9 +114,9 @@ export default function PricingSection() {
     return (
         <section className={styles.section} id="pricing">
             <div className={styles.header}>
-                <SectionLabel text="Clearance Levels" />
+                <SectionLabel text="Subscription Plans" />
                 <h2 className={styles.title}>
-                    Access<br />Tiers
+                    Transparent<br />Pricing
                 </h2>
                 <p className={styles.desc}>
                     Institutional access is tiered by operational scope. All plans include

@@ -11,11 +11,11 @@ export default function HomePage() {
         <main>
             <Hero />
             <StatBand />
-            <ProblemSection />
             <FeaturesSection />
-            <CalloutSection />
             <HowSection />
+            <ProblemSection />
             <PricingSection />
+            <CalloutSection />
         </main>
     )
 }

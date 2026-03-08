@@ -5,20 +5,20 @@ import styles from './HowSection.module.css'
 
 const steps = [
     {
-        title: 'Institutional Onboarding',
-        body: 'Secure API integration with your LMS in under 48 hours. Zero student-side configuration required. FERPA & GDPR-compliant data handling from day one.',
+        title: 'Institutional Integration',
+        body: 'Secure API integration with your LMS in under 48 hours. Zero student-side configuration required. Compliant data handling from day one.',
     },
     {
-        title: 'Submission Ingestion',
-        body: 'Every submitted artifact — document, code, media — is processed through our multi-modal pipeline. Metadata extraction, behavioral fingerprinting, and corpus indexing occur in parallel.',
+        title: 'Data Processing',
+        body: 'Every submitted artifact — document, code, media — is processed through our secure multi-modal pipeline in real-time.',
     },
     {
-        title: 'Multi-Layer Analysis',
-        body: 'All five intelligence modules execute concurrently. LinguisticaAI™, FederatedIndex™, ProctorCore™, ForensicLens™, and ContextGraph™ generate a composite integrity score.',
+        title: 'Multi-Layer Verification',
+        body: 'Concurrent intelligence modules generate a composite integrity score based on authorship, proctoring, and semantic analysis.',
     },
     {
-        title: 'Actionable Intelligence Report',
-        body: 'Educators receive a classified dossier: flagged vectors, confidence intervals, evidence chains, and recommended adjudication actions — ready for institutional review.',
+        title: 'Comprehensive Reporting',
+        body: 'Educators receive a detailed report: flagged vectors, confidence intervals, and evidence chains for final institutional review.',
     },
 ]
 
@@ -26,13 +26,13 @@ export default function HowSection() {
     return (
         <section className={styles.section} id="how">
             <div className={styles.header}>
-                <SectionLabel text="Operational Protocol" />
+                <SectionLabel text="System Architecture" />
                 <h2 className={styles.title}>
                     How It<br />Works
                 </h2>
                 <p className={styles.desc}>
-                    From submission to verdict in under a second. The GYAANSETU pipeline is engineered
-                    for institutional scale — handling thousands of concurrent submissions without latency.
+                    Built for speed and accuracy. The GYAANSETU pipeline handles thousands
+                    of concurrent submissions without compromising on integrity.
                 </p>
             </div>
             <div className={styles.grid}>
