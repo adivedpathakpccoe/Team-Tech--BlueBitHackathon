@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 from uuid import UUID
@@ -344,6 +345,56 @@ class AssignmentService(BaseService):
             .execute()
         )
         return res.data
+
+    async def distribute(self, classroom_assignment_id: UUID, batch_id: UUID) -> dict:
+        """Generate unique honeypot variants for every student in a batch and persist them."""
+        # 1. Fetch the classroom assignment template
+        ca_res = await (
+            self.db.table("classroom_assignments")
+            .select("*")
+            .eq("id", str(classroom_assignment_id))
+            .single()
+            .execute()
+        )
+        ca = ca_res.data
+
+        # 2. Fetch all students in the batch
+        members_res = await (
+            self.db.table("batch_members")
+            .select("student_id")
+            .eq("batch_id", str(batch_id))
+            .execute()
+        )
+        student_ids = [m["student_id"] for m in members_res.data]
+
+        if not student_ids:
+            return {"distributed_to": 0, "assignments": []}
+
+        # 3. Generate a unique variant per student concurrently
+        async def _generate_for_student(student_id: str) -> dict:
+            parsed = await _call_gemini_variant(ca["topic"], ca["difficulty"])
+
+            record: dict = {
+                "classroom_assignment_id": str(classroom_assignment_id),
+                "student_id": student_id,
+                "assignment_text": parsed["assignment_text"],
+                "honeypot_phrase": parsed["honeypot_phrase"] if ca["honeypot_hidden_instruction"] else None,
+                "expected_interpretations": parsed["expected_interpretations"],
+                "mode": ca["mode"],
+            }
+
+            if ca["mode"] == "proactive":
+                record["hidden_trigger_phrase"] = parsed["hidden_trigger_phrase"]
+                if ca["honeypot_zero_width"]:
+                    record["zero_width_encoded_id"] = _encode_zero_width(student_id)
+                if ca["honeypot_fake_fact"]:
+                    record["wrong_fact_signal"] = parsed["wrong_fact_signal"]
+
+            res = await self.db.table("assignments").insert(record).execute()
+            return res.data[0]
+
+        assignments = await asyncio.gather(*[_generate_for_student(sid) for sid in student_ids])
+        return {"distributed_to": len(assignments), "assignments": list(assignments)}
 
     async def get_for_student(self, student_id: UUID) -> dict | None:
         """Fetch the most recent assignment variant for a given student."""
