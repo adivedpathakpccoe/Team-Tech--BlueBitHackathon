@@ -11,7 +11,7 @@ from app.models.assignment import AssignmentCreate
 from app.core.exceptions import ExternalServiceError, NotFoundError
 
 genai.configure(api_key=settings.gemini_api_key)
-_model = genai.GenerativeModel("gemini-1.5-flash")
+_model = genai.GenerativeModel("gemini-2.5-flash")
 logger = logging.getLogger(__name__)
 
 # Zero-width character encoding: 0 → ZWSP, 1 → ZWNJ
@@ -444,13 +444,13 @@ class AssignmentService(BaseService):
             
             # Check for existing submission & socratic session
             sub_res = await self.db.table("submissions").select("*").eq("assignment_id", data["id"]).maybe_single().execute()
-            if sub_res.data:
+            if sub_res is not None and sub_res.data:
                 data["submission"] = sub_res.data
                 soc_res = await self.db.table("socratic_sessions").select("*").eq("submission_id", sub_res.data["id"]).maybe_single().execute()
-                if soc_res.data:
+                if soc_res is not None and soc_res.data:
                     data["socratic"] = soc_res.data
                 scr_res = await self.db.table("scores").select("*").eq("submission_id", sub_res.data["id"]).maybe_single().execute()
-                if scr_res.data:
+                if scr_res is not None and scr_res.data:
                     data["scores"] = scr_res.data
             return data
 

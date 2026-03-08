@@ -8,7 +8,7 @@ from app.services.base import BaseService
 from app.core.exceptions import ExternalServiceError, NotFoundError, BusinessLogicError
 
 genai.configure(api_key=settings.gemini_api_key)
-_model = genai.GenerativeModel("gemini-1.5-flash")
+_model = genai.GenerativeModel("gemini-2.5-flash")
 
 _CHALLENGE_PROMPT = """
 You are an academic integrity examiner. Read the following student essay and generate ONE broad, open-ended question that tests whether the student genuinely understands the overall argument and key ideas of what they wrote. The question should require the student to explain their reasoning or evidence in their own words — not just recite facts.

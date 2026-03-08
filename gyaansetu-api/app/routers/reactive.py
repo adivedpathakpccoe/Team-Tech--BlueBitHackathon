@@ -189,12 +189,17 @@ async def reactive_upload(
 
     # Generate Socratic challenge
     challenge = None
+    started_at = None
+    time_limit = 180
+    session = None
     try:
         svc = SocraticService(db)
         session = await svc.generate_challenge(UUID(submission_id), extracted_text)
-        challenge = session["challenge"]
+        challenge = session.get("challenge")
+        started_at = session.get("started_at")
+        time_limit = session.get("time_limit", 180)
     except Exception as e:
-        logger.warning("Socratic generation failed (non-critical): %s", e)
+        logger.error("Socratic generation failed: %s", e, exc_info=True)
 
     return ok(
         data={
@@ -202,8 +207,8 @@ async def reactive_upload(
             "filename": file.filename,
             "text_length": len(extracted_text),
             "challenge": challenge,
-            "started_at": session.get("started_at") if challenge else None,
-            "time_limit": session.get("time_limit", 180) if challenge else 180,
+            "started_at": started_at,
+            "time_limit": time_limit,
         },
         message="File uploaded and processed",
     )
