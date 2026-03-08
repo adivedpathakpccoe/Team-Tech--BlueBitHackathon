@@ -34,6 +34,12 @@ class ValidationError(AppException):
         super().__init__(422, detail, "VALIDATION_ERROR")
 
 
+class BusinessLogicError(AppException):
+    """Raised when a business logic rule is violated."""
+    def __init__(self, detail: str):
+        super().__init__(422, detail, "BUSINESS_LOGIC_ERROR")
+
+
 class ExternalServiceError(AppException):
     """Raised when an external service call (Gemini, ML) fails."""
     def __init__(self, service: str, detail: str):
