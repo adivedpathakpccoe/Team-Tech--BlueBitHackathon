@@ -1,6 +1,5 @@
 'use server'
 
-import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
 import { authApi } from '@/lib/api'
@@ -51,7 +50,6 @@ export async function login(formData: FormData) {
         return { error: message }
     }
 
-    revalidatePath('/', 'layout')
     redirect('/dashboard')
 }
 
@@ -75,7 +73,6 @@ export async function signup(formData: FormData) {
         return { error: message }
     }
 
-    revalidatePath('/', 'layout')
     redirect('/dashboard')
 }
 
@@ -88,6 +85,5 @@ export async function logout() {
     }
 
     await clearAuthCookies()
-    revalidatePath('/', 'layout')
     redirect('/auth/login')
 }

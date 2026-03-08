@@ -1,0 +1,10 @@
+import pytest
+from httpx import AsyncClient, ASGITransport
+from app.main import app
+
+
+@pytest.fixture
+async def client():
+    """Yield an async test client bound to the FastAPI app."""
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
+        yield c
