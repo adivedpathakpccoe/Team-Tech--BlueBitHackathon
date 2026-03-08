@@ -33,6 +33,12 @@
     grid-template-columns: repeat(4, 1fr);
     background: var(--border);
     gap: 1px;
+    align-items: stretch;
+}
+
+/* Force ScrollReveal wrappers to fill full cell height */
+.grid > * {
+    height: 100%;
 }
 
 @media (max-width: 900px) {

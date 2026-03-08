@@ -38,7 +38,7 @@ export default function HowSection() {
             <div className={styles.grid}>
                 {steps.map((s, i) => (
                     <ScrollReveal key={i} delay={i * 0.08}>
-                        <HowStep index={i} title={s.title} body={s.body} />
+                        <HowStep index={i} title={s.title} body={s.body} showLine={i === 0 || i === 2} />
                     </ScrollReveal>
                 ))}
             </div>
