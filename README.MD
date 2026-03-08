@@ -261,3 +261,12 @@ GYAANSETU is suited for:
 
 **BlueBit Hackathon Team**
 Project: GYAANSETU — Academic Integrity Detection System
+Team Members:
+      Mihir Pande
+      Aditya Vedpathak
+      Nishant Bhakar
+      Ashish Suryawanshi
+
+
+
+
