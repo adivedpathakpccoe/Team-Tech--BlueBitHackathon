@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { studentApi, classroomsApi, extractorApi, type EnrolledBatch, type Assignment } from '@/lib/api'
+import { studentApi, classroomsApi, reactiveApi, type EnrolledBatch, type Assignment } from '@/lib/api'
 import styles from './dashboard.module.css'
 import { toast } from 'sonner'
 import { useRef } from 'react'
@@ -129,19 +129,23 @@ export default function StudentSection({ token }: { token: string }) {
     const handleFileUpload = async (assignmentId: string, file: File) => {
         setExtractingId(assignmentId)
         try {
-            const res = await extractorApi.extract(file)
-            if (res.success) {
-                setExtractedContent({
-                    filename: res.filename,
-                    content: res.content
-                })
-                toast.success('Content extracted successfully')
-            } else {
-                toast.error(res.error || 'Failed to extract content')
+            toast.info('Uploading and processing your submission...')
+            const res = await reactiveApi.upload(assignmentId, file, token)
+
+            if (res.ok) {
+                toast.success('File uploaded successfully! Redirecting to verify...')
+                // After successful upload, redirect to the assignment workspace to handle Socratic challenge
+                router.push(`/dashboard/assignment/${assignmentId}`)
             }
-        } catch (error) {
-            console.error('Extraction error:', error)
-            toast.error('Failed to connect to extraction service')
+        } catch (error: any) {
+            console.error('Upload error:', error)
+            // If already submitted, just redirect them
+            if (error.message?.includes('already submitted')) {
+                toast.info('You have already submitted. Opening workspace...')
+                router.push(`/dashboard/assignment/${assignmentId}`)
+            } else {
+                toast.error(error instanceof Error ? error.message : 'Upload failed')
+            }
         } finally {
             setExtractingId(null)
         }
@@ -235,24 +239,37 @@ export default function StudentSection({ token }: { token: string }) {
                                                     <div
                                                         key={a.id}
                                                         className={`${styles.assignmentRow} ${a.mode === 'reactive' ? styles.assignmentRowReactive : ''}`}
-                                                        style={{ cursor: 'pointer' }}
-                                                        onClick={() => router.push(`/dashboard/assignment/${a.id}`)}
+                                                        style={{
+                                                            cursor: a.mode === 'proactive' ? 'pointer' : 'default',
+                                                            // Remove hover effect for reactive
+                                                            '--row-hover-border': a.mode === 'proactive' ? 'var(--teal)' : 'var(--border-dark)'
+                                                        } as any}
+                                                        onClick={() => {
+                                                            if (a.mode === 'proactive') {
+                                                                router.push(`/dashboard/assignment/${a.id}`)
+                                                            }
+                                                        }}
                                                     >
                                                         <div className={styles.assignmentMain}>
                                                             <div className={styles.assignmentTopic}>
                                                                 {a.topic}
                                                             </div>
                                                             <div className={styles.assignmentBadges}>
-                                                                <span
-                                                                    className={`${styles.diffBadge} ${difficultyStyle[a.difficulty] ?? ''}`}
-                                                                >
-                                                                    {a.difficulty}
-                                                                </span>
+                                                                {/* Only show difficulty and open badge for proactive */}
+                                                                {a.mode === 'proactive' && (
+                                                                    <>
+                                                                        <span
+                                                                            className={`${styles.diffBadge} ${difficultyStyle[a.difficulty] ?? ''}`}
+                                                                        >
+                                                                            {a.difficulty}
+                                                                        </span>
+                                                                        <span className={styles.modeBadge} style={{ color: '#1a8c82', background: '#e8f4f3' }}>
+                                                                            Open →
+                                                                        </span>
+                                                                    </>
+                                                                )}
                                                                 <span className={`${styles.modeBadge} ${a.mode === 'reactive' ? styles.modeBadgeReactive : ''}`}>
                                                                     {a.mode}
-                                                                </span>
-                                                                <span className={styles.modeBadge} style={{ color: '#1a8c82', background: '#e8f4f3' }}>
-                                                                    Open →
                                                                 </span>
                                                             </div>
                                                         </div>
@@ -272,7 +289,7 @@ export default function StudentSection({ token }: { token: string }) {
                                                                 >
                                                                     {extractingId === a.id ? (
                                                                         <>
-                                                                            <span className={styles.spinnerIcon} /> Extracting...
+                                                                            <span className={styles.spinnerIcon} /> Processing...
                                                                         </>
                                                                     ) : (
                                                                         <>

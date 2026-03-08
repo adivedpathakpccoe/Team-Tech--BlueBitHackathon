@@ -46,6 +46,18 @@ Return ONLY valid JSON:
 """
 
 
+def _strip_fences(raw: str) -> str:
+    """Remove markdown code fences if the model wraps its response."""
+    raw = raw.strip()
+    if raw.startswith("```"):
+        parts = raw.split("```")
+        inner = parts[1]
+        if inner.lower().startswith("json"):
+            inner = inner[4:]
+        return inner.strip()
+    return raw
+
+
 class SocraticService(BaseService):
     """Service for generating and scoring Socratic challenge sessions."""
 
@@ -60,9 +72,10 @@ class SocraticService(BaseService):
         prompt = _CHALLENGE_PROMPT.format(essay=essay_text)
         try:
             response = await _model.generate_content_async(prompt)
-            parsed = json.loads(response.text)
+            raw = _strip_fences(response.text)
+            parsed = json.loads(raw)
         except Exception as e:
-            raise ExternalServiceError("Gemini", str(e))
+            raise ExternalServiceError("Gemini", f"Failed to generate challenge: {e}")
 
         record = await self.create({
             "submission_id": str(submission_id),
@@ -76,20 +89,29 @@ class SocraticService(BaseService):
         if not session:
             raise NotFoundError("socratic_sessions", submission_id)
 
-        # Fetch the original essay for context
-        essay_res = await self.db.table("submissions").select("essay_text").eq("id", str(submission_id)).maybe_single().execute()
-        essay_text = essay_res.data["essay_text"] if essay_res.data else ""
+        # Fetch the original essay for context - check both proactive and reactive tables
+        essay_text = ""
+        # 1. Check proactive
+        pro_res = await self.db.table("submissions").select("essay_text").eq("id", str(submission_id)).execute()
+        if pro_res.data:
+            essay_text = pro_res.data[0]["essay_text"]
+        else:
+            # 2. Check reactive
+            react_res = await self.db.table("reactive_submissions").select("extracted_text").eq("id", str(submission_id)).execute()
+            if react_res.data:
+                essay_text = react_res.data[0]["extracted_text"]
 
         prompt = _SCORE_PROMPT.format(
-            essay=essay_text,
+            essay=essay_text or "No essay text found.",
             challenge=session["challenge"],
             response=student_response,
         )
         try:
             response = await _model.generate_content_async(prompt)
-            parsed = json.loads(response.text)
+            raw = _strip_fences(response.text)
+            parsed = json.loads(raw)
         except Exception as e:
-            raise ExternalServiceError("Gemini", str(e))
+            raise ExternalServiceError("Gemini", f"Failed to score response: {e}")
 
         return await self.update(session["id"], {
             "student_response": student_response,

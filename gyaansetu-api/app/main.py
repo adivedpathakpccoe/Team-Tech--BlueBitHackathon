@@ -7,7 +7,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from app.config import settings
 from app.database import init_supabase
 from app.core.exceptions import register_exception_handlers
-from app.routers import auth, assignments, classrooms, students, submissions, socratic, behavior
+from app.routers import auth, assignments, classrooms, students, submissions, socratic, behavior, reactive
 
 logger = logging.getLogger(__name__)
 
@@ -64,6 +64,7 @@ def create_app() -> FastAPI:
     app.include_router(submissions.router, prefix="/api/submissions", tags=["Submissions"])
     app.include_router(socratic.router, prefix="/api/socratic", tags=["Socratic"])
     app.include_router(behavior.router, prefix="/api/behavior", tags=["Behavior"])
+    app.include_router(reactive.router, prefix="/api/reactive", tags=["Reactive"])
 
     return app
 

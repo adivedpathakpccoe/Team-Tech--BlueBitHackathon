@@ -65,6 +65,8 @@
 /* ─── Prompt card ────────────────────────────────────────────────────────────── */
 
 .promptCard {
+    position: relative;
+    overflow: hidden;
     background: white;
     border: 1px solid var(--border-dark);
     padding: 2.5rem 3rem;

@@ -3,8 +3,17 @@
  * Base URL is configured via NEXT_PUBLIC_API_URL env var.
  */
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'https://rg89c906-8000.inc1.devtunnels.ms'
-const EXTRACTOR_URL = process.env.NEXT_PUBLIC_EXTRACTOR_URL ?? 'http://localhost:8001'
+const IS_SERVER = typeof window === 'undefined'
+
+// On the server (Server Components/Actions), we hit the backend directly via localhost or env var.
+// On the client (useEffect/Event Handlers), we hit the /backend rewrite so Next.js proxies it for us.
+const BASE_URL = IS_SERVER
+    ? (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000')
+    : '/backend'
+
+const EXTRACTOR_URL = IS_SERVER
+    ? (process.env.NEXT_PUBLIC_EXTRACTOR_URL ?? 'http://localhost:8001')
+    : '/extractor' // We should also add a rewrite for the extractor if needed.
 
 // ─── Response types ──────────────────────────────────────────────────────────
 
@@ -37,8 +46,9 @@ async function apiFetch<T>(
     path: string,
     options: RequestInit = {},
     token?: string,
-    timeoutMs = 15_000,
+    timeoutMs = 45_000,
 ): Promise<ApiResponse<T>> {
+    console.log(`[API] ${options.method || 'GET'} ${path}`)
     const headers: Record<string, string> = {
         'Content-Type': 'application/json',
         ...(options.headers as Record<string, string>),
@@ -51,16 +61,22 @@ async function apiFetch<T>(
     const controller = new AbortController()
     const timer = setTimeout(() => controller.abort(), timeoutMs)
 
+    // Normalize URL: remove trailing slash from base and leading slash from path to join cleanly
+    const normalizedBase = BASE_URL.endsWith('/') ? BASE_URL.slice(0, -1) : BASE_URL
+    const normalizedPath = path.startsWith('/') ? path : `/${path}`
+    const fullUrl = `${normalizedBase}${normalizedPath}`
+
     let res: Response
     try {
-        res = await fetch(`${BASE_URL}${path}`, {
+        res = await fetch(fullUrl, {
             ...options,
             headers,
             signal: controller.signal,
         })
     } catch (err: unknown) {
+        console.error(`[API ERROR] ${options.method || 'GET'} ${path}:`, err)
         if (err instanceof Error && err.name === 'AbortError') {
-            throw new Error('Request timed out. Please try again.')
+            throw new Error('Request timed out after 45s. The dev tunnel might be sluggish.')
         }
         throw err
     } finally {
@@ -266,6 +282,8 @@ export interface StudentAssignment {
     student_id: string
     assignment_text: string
     honeypot_phrase: string | null
+    hidden_trigger_phrase: string | null
+    wrong_fact_signal: string | null
     mode: 'proactive' | 'reactive'
     topic?: string
     difficulty?: 'easy' | 'medium' | 'hard'
@@ -379,3 +397,129 @@ export const extractorApi = {
         return await res.json()
     }
 }
+
+// ─── Reactive mode endpoints ──────────────────────────────────────────────────
+
+export interface ReactiveUploadResult {
+    submission_id: string
+    filename: string
+    text_length: number
+    challenge: string | null
+}
+
+export interface ReactiveSocraticResult {
+    socratic_score: number
+    analysis: string
+    followup: string | null
+}
+
+export interface ReactiveAnalysisResult {
+    total_submissions: number
+    flagged_pairs: Array<{
+        student_a: string
+        student_b: string
+        submission_a: string
+        submission_b: string
+        similarity: number
+        method_signal: 'lexical' | 'semantic'
+    }>
+    results: Array<{
+        submission_id: string
+        student_id: string
+        filename: string
+        max_similarity: number
+        most_similar_to: string | null
+        similarity_method: 'lexical' | 'semantic'
+        tfidf_originality: number
+        socratic_score: number
+        ownership_score: number
+    }>
+}
+
+export interface ReactiveResultEntry {
+    submission_id: string
+    student_id: string
+    student_name: string
+    student_email: string | null
+    filename: string
+    submitted_at: string
+    scores: {
+        similarity_score: number
+        similarity_method: 'lexical' | 'semantic'
+        tfidf_originality: number
+        socratic_score: number
+        ownership_score: number
+    } | null
+}
+
+export interface ReactiveSubmissionStatus {
+    submission: {
+        id: string
+        classroom_assignment_id: string
+        student_id: string
+        filename: string
+        extracted_text: string
+        created_at: string
+    }
+    socratic: {
+        challenge: string
+        student_response: string | null
+        socratic_score: number | null
+        analysis: string | null
+        followup: string | null
+    } | null
+    scores: {
+        similarity_score: number
+        similarity_method: 'lexical' | 'semantic'
+        tfidf_originality: number
+        socratic_score: number
+        ownership_score: number
+    } | null
+}
+
+export const reactiveApi = {
+    /** Get classroom assignment info for reactive mode (no Gemini call) */
+    getAssignment: (assignmentId: string, token: string) =>
+        apiFetch<Assignment>(`/api/reactive/assignments/${assignmentId}`, {}, token),
+
+    /** Check if student already submitted for this reactive assignment */
+    getMySubmission: (assignmentId: string, token: string) =>
+        apiFetch<ReactiveSubmissionStatus | null>(`/api/reactive/my-submission/${assignmentId}`, {}, token),
+
+    /** Upload a file for reactive analysis (multipart/form-data) */
+    upload: async (assignmentId: string, file: File, token: string): Promise<ApiResponse<ReactiveUploadResult>> => {
+        const formData = new FormData()
+        formData.append('classroom_assignment_id', assignmentId)
+        formData.append('file', file)
+
+        const res = await fetch(`${BASE_URL}/api/reactive/upload`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` },
+            body: formData,
+        })
+
+        const json = await res.json()
+        if (!res.ok) {
+            throw new Error(json?.detail ?? 'Upload failed')
+        }
+        return json
+    },
+
+    /** Submit student's Socratic answer */
+    socraticAnswer: (submissionId: string, studentResponse: string, token: string) =>
+        apiFetch<ReactiveSocraticResult>('/api/reactive/socratic-answer', {
+            method: 'POST',
+            body: JSON.stringify({ submission_id: submissionId, student_response: studentResponse }),
+        }, token, 60_000),
+
+    /** Teacher: Close assignment & run inter-student TF-IDF analysis */
+    analyze: (assignmentId: string, token: string) =>
+        apiFetch<ReactiveAnalysisResult>(`/api/reactive/${assignmentId}/analyze`, {
+            method: 'POST',
+        }, token, 120_000),
+
+    /** Teacher: Get analysis results */
+    getResults: (assignmentId: string, token: string) =>
+        apiFetch<ReactiveResultEntry[]>(`/api/reactive/${assignmentId}/results`, {}, token),
+}
+

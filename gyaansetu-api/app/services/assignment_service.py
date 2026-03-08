@@ -410,10 +410,9 @@ class AssignmentService(BaseService):
             .eq("student_id", str(student_id))
             .order("created_at", desc=True)
             .limit(1)
-            .maybe_single()
             .execute()
         )
-        return res.data
+        return res.data[0] if res.data else None
 
     async def get_student_variant(self, student_id: UUID, classroom_assignment_id: UUID) -> dict | None:
         """Fetch a student's specific variant for a classroom assignment, auto-generating on first access."""

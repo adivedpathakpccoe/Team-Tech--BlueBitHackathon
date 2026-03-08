@@ -41,10 +41,27 @@ class ExternalServiceError(AppException):
 
 
 def register_exception_handlers(app: FastAPI) -> None:
-    """Attach the global AppException handler to the FastAPI instance."""
+    """Attach the global AppException and generic Exception handlers."""
+    
     @app.exception_handler(AppException)
     async def app_exception_handler(request: Request, exc: AppException) -> JSONResponse:
         return JSONResponse(
             status_code=exc.status_code,
             content={"ok": False, "code": exc.code, "detail": exc.detail},
+        )
+
+    @app.exception_handler(Exception)
+    async def generic_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+        # Import logger here to avoid circular imports if any
+        import logging
+        logger = logging.getLogger("app.main")
+        logger.exception("Unhandled exception: %s", str(exc))
+        
+        return JSONResponse(
+            status_code=500,
+            content={
+                "ok": False, 
+                "code": "INTERNAL_SERVER_ERROR", 
+                "detail": "An unexpected error occurred. Please try again later."
+            },
         )

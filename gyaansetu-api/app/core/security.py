@@ -48,10 +48,16 @@ async def get_user_from_token(token: str, db: AsyncClient):
         return cached
 
     try:
+        # If not in cache, we MUST hit Supabase. This is slow over port forwarding.
+        start = time.perf_counter()
         res = await db.auth.get_user(token)
+        elapsed = (time.perf_counter() - start) * 1000
+        
         user = res.user
         if user is not None:
+            logger.info("Supabase get_user success (%.1fms). Caching token.", elapsed)
             _cache_set(token, user)
         return user
-    except Exception:
+    except Exception as e:
+        logger.error("Supabase get_user failed: %s", str(e), exc_info=True)
         return None

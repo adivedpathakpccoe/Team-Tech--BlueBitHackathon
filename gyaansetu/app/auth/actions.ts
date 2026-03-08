@@ -46,6 +46,7 @@ export async function login(formData: FormData) {
             await setAuthCookies(res.data.access_token, res.data.refresh_token)
         }
     } catch (err: unknown) {
+        console.error('[AUTH ACTION] Login failed:', err)
         const message = err instanceof Error ? err.message : 'Login failed'
         return { error: message }
     }
@@ -62,18 +63,12 @@ export async function signup(formData: FormData) {
     try {
         // 1. Register the user via backend
         await authApi.signup(email, password, name, role)
-
-        // 2. Immediately sign them in to get tokens
-        const signInRes = await authApi.signin(email, password)
-        if (signInRes.data) {
-            await setAuthCookies(signInRes.data.access_token, signInRes.data.refresh_token)
-        }
     } catch (err: unknown) {
         const message = err instanceof Error ? err.message : 'Signup failed'
         return { error: message }
     }
 
-    redirect('/dashboard')
+    redirect('/auth/login?signup=success')
 }
 
 export async function logout() {

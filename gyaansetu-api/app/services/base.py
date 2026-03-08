@@ -17,10 +17,10 @@ class BaseService(Generic[ModelT]):
 
     async def get_by_id(self, id: UUID | str) -> dict:
         """Fetch a single row by primary key; raises NotFoundError if absent."""
-        res = await self.db.table(self.table).select("*").eq("id", str(id)).maybe_single().execute()
+        res = await self.db.table(self.table).select("*").eq("id", str(id)).execute()
         if not res.data:
             raise NotFoundError(self.table, id)
-        return res.data
+        return res.data[0]
 
     async def list_paginated(self, page: int = 1, page_size: int = 20, filters: dict | None = None) -> tuple[list, int]:
         """Return a page of rows and the total count, optionally filtered."""
@@ -58,8 +58,8 @@ class BaseService(Generic[ModelT]):
 
     async def get_by_field(self, field: str, value: Any) -> dict | None:
         """Fetch the first row where a single column equals the given value."""
-        res = await self.db.table(self.table).select("*").eq(field, value).maybe_single().execute()
-        return res.data
+        res = await self.db.table(self.table).select("*").eq(field, value).execute()
+        return res.data[0] if res.data else None
 
     def build_filters(self, **kwargs: Any) -> dict:
         """Return a dict of non-None keyword arguments for use as query filters."""

@@ -673,7 +673,7 @@
 }
 
 .assignmentRow:hover {
-    border-color: var(--teal);
+    border-color: var(--row-hover-border, var(--teal));
 }
 
 .assignmentTopic {
