@@ -10,7 +10,7 @@ const IS_SERVER = typeof window === 'undefined'
 // 127.0.0.1 (NOT localhost — avoids IPv6 resolution delay on macOS/Node.js 17+).
 // On the client (useEffect/Event Handlers), we hit the /backend rewrite so Next.js proxies it for us.
 const BASE_URL = IS_SERVER
-    ? (process.env.API_BASE_URL ?? 'https://rg89c906-8000.inc1.devtunnels.ms/')
+    ? (process.env.API_BASE_URL ?? 'https://dwain-unmystic-addyson.ngrok-free.dev')
     : '/backend'
 
 const EXTRACTOR_URL = IS_SERVER
