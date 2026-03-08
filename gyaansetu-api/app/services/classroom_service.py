@@ -63,6 +63,13 @@ class ClassroomService(BaseService):
             raise ForbiddenError("You do not own this classroom")
         return row
 
+    async def delete_classroom(self, classroom_id: UUID, teacher_id: UUID) -> None:
+        """Delete a classroom, verifying ownership first."""
+        row = await self.get_by_id(classroom_id)
+        if row["teacher_id"] != str(teacher_id):
+            raise ForbiddenError("You do not own this classroom")
+        await self.delete(classroom_id)
+
     # ------------------------------------------------------------------ #
     # Batches                                                              #
     # ------------------------------------------------------------------ #

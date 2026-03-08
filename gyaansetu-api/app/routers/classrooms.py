@@ -45,6 +45,15 @@ async def get_classroom(
     return ok(data=result)
 
 
+@router.delete("/{classroom_id}", response_model=dict)
+async def delete_classroom(
+    classroom_id: UUID, teacher: TeacherDep, svc: ClassroomServiceDep
+):
+    """Delete a classroom (and cascade its batches) owned by the authenticated teacher."""
+    await svc.delete_classroom(classroom_id=classroom_id, teacher_id=teacher.id)
+    return ok(message="Classroom deleted")
+
+
 # ------------------------------------------------------------------ #
 # Batches                                                              #
 # ------------------------------------------------------------------ #
