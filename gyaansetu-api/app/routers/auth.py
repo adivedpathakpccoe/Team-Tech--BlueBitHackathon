@@ -52,6 +52,7 @@ class ResetPasswordRequest(BaseModel):
 async def sign_up(body: SignUpRequest, db: AuthDbDep):
     """Register a new user via Supabase Auth and store profile metadata."""
     try:
+        # `options.data` is persisted as user_metadata and later read for RBAC.
         res = await db.auth.sign_up({
             "email": body.email,
             "password": body.password,
@@ -70,8 +71,10 @@ async def sign_in(body: SignInRequest, db: AuthDbDep):
         res = await db.auth.sign_in_with_password({"email": body.email, "password": body.password})
         logger.info("Sign-in successful for user_id: %s", res.user.id)
         return ok(data={
+            # Access token is sent on API calls; refresh token is for renewal.
             "access_token": res.session.access_token,
             "refresh_token": res.session.refresh_token,
+            # Role is sourced from auth metadata; teacher-only endpoints enforce this.
             "user": {"id": res.user.id, "email": res.user.email, "role": res.user.user_metadata.get("role")},
         })
     except AuthApiError as e:
@@ -86,6 +89,7 @@ async def sign_in(body: SignInRequest, db: AuthDbDep):
 async def refresh_token(body: RefreshTokenRequest, db: AuthDbDep):
     """Refresh the access token using a valid refresh token."""
     try:
+        # Supabase returns a new access+refresh pair; caller should replace both.
         res = await db.auth.refresh_session(body.refresh_token)
         return ok(data={
             "access_token": res.session.access_token,
@@ -127,6 +131,7 @@ async def get_current_user(current_user: CurrentUserDep):
 @router.post("/signout", response_model=dict)
 async def sign_out(db: DbDep):
     """Invalidate the current Supabase session."""
+    # This revokes current auth session in Supabase; client should also clear local tokens.
     await db.auth.sign_out()
     return ok(message="Signed out")
 
