@@ -207,23 +207,10 @@ export interface BatchCreate {
 export interface EnrolledBatch {
     batch_id: string
     batch_name: string
-    batch_description: string | null
-    join_code: string
     classroom_id: string
     classroom_name: string
-    classroom_description: string | null
-    joined_at: string
 }
 
-export interface StudentAssignment {
-    id: string
-    topic: string
-    description: string | null
-    difficulty: 'easy' | 'medium' | 'hard'
-    mode: 'proactive' | 'reactive'
-    created_at: string
-    classroom_id: string
-}
 
 export const classroomsApi = {
     /** List all classrooms owned by the teacher */
@@ -271,11 +258,11 @@ export const classroomsApi = {
 // ─── Student endpoints ────────────────────────────────────────────────────────
 
 export const studentApi = {
-    /** Get all batches/classrooms the student has joined */
+    /** Get all batches the student is enrolled in */
     getMyBatches: (token: string) =>
-        apiFetch<EnrolledBatch[]>('/api/classrooms/student/my-batches', {}, token),
+        apiFetch<EnrolledBatch[]>('/api/student/batches', {}, token),
 
-    /** Get assignments for a specific classroom (student view) */
+    /** Get classroom assignments for a classroom the student is enrolled in */
     getAssignmentsForClassroom: (classroom_id: string, token: string) =>
-        apiFetch<Assignment[]>(`/api/classrooms/${classroom_id}/assignments`, {}, token),
+        apiFetch<Assignment[]>(`/api/student/classrooms/${classroom_id}/assignments`, {}, token),
 }

@@ -172,6 +172,55 @@ class ClassroomService(BaseService):
         )
         return {"membership": res.data[0], "batch": batch}
 
+    async def get_enrolled_batches(self, student_id: UUID) -> list:
+        """Return all batches a student is enrolled in, with classroom info."""
+        res = await (
+            self.db.table("batch_members")
+            .select("batch_id, batches(id, name, classroom_id, classrooms(id, name))")
+            .eq("student_id", str(student_id))
+            .execute()
+        )
+        result = []
+        for m in res.data:
+            batch = m["batches"]
+            classroom = batch["classrooms"]
+            result.append({
+                "batch_id": batch["id"],
+                "batch_name": batch["name"],
+                "classroom_id": classroom["id"],
+                "classroom_name": classroom["name"],
+            })
+        return result
+
+    async def get_classroom_assignments_for_student(self, student_id: UUID, classroom_id: UUID) -> list:
+        """Return classroom assignments for a classroom the student is enrolled in."""
+        # Verify student is in at least one batch in this classroom
+        check = await (
+            self.db.table("batch_members")
+            .select("batches(classroom_id)", count="exact", head=True)
+            .eq("student_id", str(student_id))
+            .execute()
+        )
+        # Fetch all batch classroom_ids the student belongs to
+        batches_res = await (
+            self.db.table("batch_members")
+            .select("batches(classroom_id)")
+            .eq("student_id", str(student_id))
+            .execute()
+        )
+        enrolled_classroom_ids = {m["batches"]["classroom_id"] for m in batches_res.data}
+        if str(classroom_id) not in enrolled_classroom_ids:
+            raise ForbiddenError("Not enrolled in this classroom")
+
+        res = await (
+            self.db.table("classroom_assignments")
+            .select("*")
+            .eq("classroom_id", str(classroom_id))
+            .order("created_at", desc=True)
+            .execute()
+        )
+        return res.data
+
     async def list_members(self, batch_id: UUID, teacher_id: UUID) -> list:
         """Return all members of a batch, verifying the caller owns the parent classroom."""
         batch_res = await (
