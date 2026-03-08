@@ -26,11 +26,11 @@ export default function Hero() {
             </p>
 
             <div className={styles.actions}>
-                <Link href="#pricing" className={styles.btnPrimary}>
-                    Request Access
+                <Link href="/auth/signup" className={styles.btnPrimary}>
+                    Get Started Free
                 </Link>
-                <Link href="#solutions" className={styles.btnGhost}>
-                    View Intelligence Report →
+                <Link href="/auth/login" className={styles.btnGhost}>
+                    Sign In →
                 </Link>
             </div>
 

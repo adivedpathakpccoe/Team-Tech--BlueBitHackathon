@@ -7,15 +7,15 @@ import HowSection from '@/components/sections/HowSection'
 import PricingSection from '@/components/sections/PricingSection'
 
 export default function HomePage() {
-  return (
-    <main>
-      <Hero />
-      <StatBand />
-      <ProblemSection />
-      <FeaturesSection />
-      <CalloutSection />
-      <HowSection />
-      <PricingSection />
-    </main>
-  )
+    return (
+        <main>
+            <Hero />
+            <StatBand />
+            <ProblemSection />
+            <FeaturesSection />
+            <CalloutSection />
+            <HowSection />
+            <PricingSection />
+        </main>
+    )
 }
