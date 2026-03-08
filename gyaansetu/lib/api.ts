@@ -53,6 +53,9 @@ async function apiFetch<T>(
     console.log(`[API] ${options.method || 'GET'} ${path}`)
     const headers: Record<string, string> = {
         'Content-Type': 'application/json',
+        // Required to skip ngrok's browser-warning HTML interstitial page.
+        // Without this, ngrok free tunnels return an HTML page instead of JSON.
+        'ngrok-skip-browser-warning': 'true',
         ...(options.headers as Record<string, string>),
     }
 
@@ -85,7 +88,22 @@ async function apiFetch<T>(
         clearTimeout(timer)
     }
 
-    const json = await res.json()
+    // Safely parse response: read as text first so we get a readable error
+    // if the server returns HTML (e.g. a gateway page or ngrok interstitial)
+    // instead of a cryptic "SyntaxError: Unexpected token '<'"
+    const text = await res.text()
+    let json: ApiResponse<T> & { detail?: unknown; message?: string }
+    try {
+        json = JSON.parse(text)
+    } catch {
+        // The server returned non-JSON (likely HTML — e.g. ngrok warning / 502 gateway page)
+        console.error(`[API] Non-JSON response from ${fullUrl}:`, text.slice(0, 300))
+        throw new Error(
+            res.ok
+                ? `Server returned unexpected HTML instead of JSON. Is the backend running at ${BASE_URL}?`
+                : `HTTP ${res.status}: Server returned an HTML error page instead of JSON. Check the backend URL in your environment.`
+        )
+    }
 
     if (!res.ok) {
         const detail = json?.detail ?? json?.message ?? 'An error occurred'
@@ -522,13 +540,22 @@ export const reactiveApi = {
 
         const res = await fetch(`${BASE_URL}/api/reactive/upload`, {
             method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}` },
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'ngrok-skip-browser-warning': 'true',
+            },
             body: formData,
         })
 
-        const json = await res.json()
+        const text = await res.text()
+        let json: ApiResponse<ReactiveUploadResult>
+        try {
+            json = JSON.parse(text)
+        } catch {
+            throw new Error(`HTTP ${res.status}: Server returned an HTML error page. Check the backend URL.`)
+        }
         if (!res.ok) {
-            throw new Error(json?.detail ?? 'Upload failed')
+            throw new Error((json as unknown as { detail?: string })?.detail ?? 'Upload failed')
         }
         return json
     },
