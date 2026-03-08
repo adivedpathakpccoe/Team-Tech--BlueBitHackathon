@@ -6,6 +6,7 @@ import {
     studentApi,
     submissionsApi,
     socraticApi,
+    snapshotsApi,
     type StudentAssignment,
     type SubmissionResult,
     type SocraticScoreResult,
@@ -47,6 +48,7 @@ export default function AssignmentWorkspace({
     // ── Core state ──────────────────────────────────────────────────────────
     const [assignment, setAssignment] = useState<StudentAssignment | null>(null)
     const [isLoading, setIsLoading] = useState(true)
+    const [loadError, setLoadError] = useState(false)
     const [essay, setEssay] = useState('')
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [submission, setSubmission] = useState<SubmissionResult | null>(null)
@@ -74,6 +76,7 @@ export default function AssignmentWorkspace({
         recordPaste,
         recordTabSwitch,
         finalise,
+        getUnflushedSnapshots,
     } = useDiffRecorder()
 
     const isProactive = assignment?.mode === 'proactive'
@@ -82,6 +85,7 @@ export default function AssignmentWorkspace({
 
     useEffect(() => {
         const load = async () => {
+            setLoadError(false)
             try {
                 const res = await studentApi.getMyAssignmentVariant(classroomAssignmentId, token)
                 const data = res.data ?? null
@@ -92,6 +96,7 @@ export default function AssignmentWorkspace({
                 }
             } catch (error) {
                 console.error('Failed to load assignment:', error)
+                setLoadError(true)
                 toast.error('Failed to load assignment')
             } finally {
                 setIsLoading(false)
@@ -158,6 +163,22 @@ export default function AssignmentWorkspace({
             window.removeEventListener('blur', onBlur)
         }
     }, [isProactive, bannerDismissed, recordTabSwitch])
+
+    // ─── Periodic snapshot flush (every 30s) ─────────────────────────────────
+
+    useEffect(() => {
+        if (!assignment || !isProactive || !assignment.enable_behavioral) return
+
+        const flushInterval = setInterval(async () => {
+            const newSnapshots = getUnflushedSnapshots()
+            if (newSnapshots.length === 0) return
+            snapshotsApi.push(assignment.id, newSnapshots, token).catch(() => {
+                // Non-critical — data is also saved at submit time
+            })
+        }, 30_000)
+
+        return () => clearInterval(flushInterval)
+    }, [assignment, isProactive, token, getUnflushedSnapshots])
 
     // ─── Block clipboard & right-click (proactive mode only) ─────────────────
 
@@ -241,6 +262,15 @@ export default function AssignmentWorkspace({
             const sub = res.data
             setSubmission(sub)
 
+            // Flush any remaining snapshots and link them to the submission
+            if (isProactive && assignment.enable_behavioral) {
+                const remaining = getUnflushedSnapshots()
+                if (remaining.length > 0) {
+                    await snapshotsApi.push(assignment.id, remaining, token).catch(() => {})
+                }
+                snapshotsApi.link(assignment.id, sub.id, token).catch(() => {})
+            }
+
             // Log behavioral telemetry (non-critical, fire and forget)
             if (isProactive && assignment.enable_behavioral && log) {
                 submissionsApi.logBehavior(
@@ -253,7 +283,7 @@ export default function AssignmentWorkspace({
                         })),
                         largest_paste: log.pastes.reduce((m, p) => Math.max(m, p.len), 0),
                         tab_switches: log.tabSwitches,
-                        idle_time: 0,
+                        idle_time: log.idleTime ?? 0,
                     },
                     token,
                 ).catch(() => { /* non-critical */ })
@@ -320,9 +350,41 @@ export default function AssignmentWorkspace({
         )
     }
 
-    // ─── Not distributed yet ─────────────────────────────────────────────────
+    // ─── Not distributed yet / load error ────────────────────────────────────
 
     if (!assignment) {
+        if (loadError) {
+            return (
+                <div className={styles.stateBox}>
+                    <div className={styles.stateIcon}>⚠️</div>
+                    <h2 className={styles.stateTitle}>Failed to Load Assignment</h2>
+                    <p className={styles.stateText}>
+                        Something went wrong while generating your assignment. This can happen if the AI service is temporarily unavailable. Please try again.
+                    </p>
+                    <button
+                        className={styles.backBtn}
+                        onClick={() => {
+                            setIsLoading(true)
+                            setLoadError(false)
+                            studentApi.getMyAssignmentVariant(classroomAssignmentId, token)
+                                .then((res) => {
+                                    const data = res.data ?? null
+                                    setAssignment(data)
+                                    if (data) initLog('')
+                                    if (!data) setLoadError(true)
+                                })
+                                .catch(() => setLoadError(true))
+                                .finally(() => setIsLoading(false))
+                        }}
+                    >
+                        ↺ Try Again
+                    </button>
+                    <button className={styles.backBtn} style={{ marginTop: '0.5rem', opacity: 0.7 }} onClick={() => router.push('/dashboard')}>
+                        ← Back to Dashboard
+                    </button>
+                </div>
+            )
+        }
         return (
             <div className={styles.stateBox}>
                 <div className={styles.stateIcon}>📋</div>

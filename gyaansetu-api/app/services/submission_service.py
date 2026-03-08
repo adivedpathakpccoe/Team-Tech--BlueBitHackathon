@@ -20,7 +20,7 @@ class SubmissionService(BaseService):
         if duplicate:
             raise ConflictError("Submission already exists for this assignment")
         return await self.create({
-            **data.model_dump(),
+            **data.model_dump(exclude_none=True),
             "student_id": str(student_id),
             "assignment_id": str(data.assignment_id),
         })

@@ -1,12 +1,22 @@
 'use client'
-import { useState } from 'react'
+
+import { useState, Suspense, useEffect } from 'react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { login } from '../actions'
 import styles from '../auth.module.css'
 
-export default function LoginPage() {
+const LoginForm = () => {
+    const searchParams = useSearchParams()
+    const [isSignupSuccess, setIsSignupSuccess] = useState(false)
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
+
+    useEffect(() => {
+        if (searchParams.get('signup') === 'success') {
+            setIsSignupSuccess(true)
+        }
+    }, [searchParams])
 
     async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
         e.preventDefault()
@@ -33,6 +43,12 @@ export default function LoginPage() {
                     Access<br />Intelligence
                 </h1>
                 <p className={styles.sub}>// Enter your credentials to proceed</p>
+
+                {isSignupSuccess && (
+                    <div className={styles.success}>
+                        ✓ Account created. Please sign in below.
+                    </div>
+                )}
 
                 {error && <div className={styles.error}>{error}</div>}
 
@@ -83,3 +99,12 @@ export default function LoginPage() {
         </div>
     )
 }
+
+export default function LoginPage() {
+    return (
+        <Suspense fallback={null}>
+            <LoginForm />
+        </Suspense>
+    )
+}
+

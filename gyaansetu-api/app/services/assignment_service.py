@@ -206,8 +206,11 @@ async def _call_gemini_variant(topic: str, difficulty: str, max_retries: int = 3
 
     for attempt in range(1, max_retries + 1):
         try:
-            response = await _model.generate_content_async(
-                _JSON_ONLY_PRIME + [{"role": "user", "parts": [prompt]}]
+            response = await asyncio.wait_for(
+                _model.generate_content_async(
+                    _JSON_ONLY_PRIME + [{"role": "user", "parts": [prompt]}]
+                ),
+                timeout=25.0,
             )
             raw = _strip_fences(response.text)
             parsed = json.loads(raw)
@@ -220,7 +223,7 @@ async def _call_gemini_variant(topic: str, difficulty: str, max_retries: int = 3
             _check_trigger_not_in_text(parsed)
             return parsed
 
-        except (json.JSONDecodeError, ValueError, KeyError) as exc:
+        except (json.JSONDecodeError, ValueError, KeyError, asyncio.TimeoutError) as exc:
             last_error = exc
             logger.warning(
                 "Gemini variant attempt %d/%d failed: %s",
@@ -452,7 +455,7 @@ class AssignmentService(BaseService):
             .execute()
         )
         if not ca_res.data:
-            return None
+            raise NotFoundError("Classroom Assignment", str(classroom_assignment_id))
         ca = ca_res.data[0]
 
         parsed = await _call_gemini_variant(ca["topic"], ca["difficulty"])
@@ -475,7 +478,7 @@ class AssignmentService(BaseService):
 
         insert_res = await self.db.table("assignments").insert(record).execute()
         if not insert_res.data:
-            return None
+            raise ExternalServiceError("Database", "Failed to persist auto-generated assignment variant")
         new_row = insert_res.data[0]
         new_row["topic"] = ca.get("topic")
         new_row["difficulty"] = ca.get("difficulty")

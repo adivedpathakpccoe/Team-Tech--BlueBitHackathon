@@ -6,10 +6,11 @@ import type { ReplaySnapshot, ReplayEvent, ReplayPaste, ReplayLog } from './repl
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const MAX_EVENTS = 10_000
-const MAX_SNAPSHOT_BYTES = 460_000 // ~460 KB total snapshot budget
-const SNAPSHOT_INTERVAL_MS = 3_000 // snapshot every 3 seconds
+const MAX_SNAPSHOT_BYTES = 700_000 // ~700 KB total snapshot budget (1s interval needs more headroom)
+const SNAPSHOT_INTERVAL_MS = 1_000 // snapshot every 1 second for smooth replay
 const SUSPICIOUS_PASTE_THRESHOLD = 100 // chars — flag paste if ≥ 100 chars after 5s
 const SUSPICIOUS_PASTE_DELAY = 5_000 // ms of recording before paste is flagged
+const IDLE_THRESHOLD_MS = 120_000 // 2 min gap between events = idle period
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
@@ -35,6 +36,7 @@ export function useDiffRecorder() {
     const lastCodeRef = useRef<string>('')
     const totalSnapshotBytesRef = useRef<number>(0)
     const initialisedRef = useRef<boolean>(false)
+    const lastFlushedIndexRef = useRef<number>(0) // tracks how many snapshots have been pushed to server
 
     /**
      * Seed the log with the initial content (template code or empty string).
@@ -168,6 +170,16 @@ export function useDiffRecorder() {
     }, [])
 
     /**
+     * Get snapshots that haven't been flushed to the server yet.
+     * Advances the flush pointer so the same snapshots aren't sent twice.
+     */
+    const getUnflushedSnapshots = useCallback(() => {
+        const unflushed = snapshotsRef.current.slice(lastFlushedIndexRef.current)
+        lastFlushedIndexRef.current = snapshotsRef.current.length
+        return unflushed
+    }, [])
+
+    /**
      * Take a final snapshot and return the complete ReplayLog.
      * Call right before submission.
      */
@@ -179,12 +191,23 @@ export function useDiffRecorder() {
             snapshotsRef.current.push({ t, code: currentCode })
         }
 
+        // Compute idle time: sum of gaps > 2 min between consecutive keystroke events
+        let idleTime = 0
+        const events = eventsRef.current
+        for (let i = 1; i < events.length; i++) {
+            const gap = events[i].t - events[i - 1].t
+            if (gap > IDLE_THRESHOLD_MS) {
+                idleTime += Math.round(gap / 1000) // accumulate idle seconds
+            }
+        }
+
         return {
             snapshots: snapshotsRef.current,
             events: eventsRef.current,
             pastes: pastesRef.current,
             tabSwitches: tabSwitchesRef.current,
             totalDuration: t,
+            idleTime,
         }
     }, [now])
 
@@ -195,6 +218,7 @@ export function useDiffRecorder() {
         recordPaste,
         recordTabSwitch,
         finalise,
+        getUnflushedSnapshots,
         tabSwitchesRef,
     }
 }

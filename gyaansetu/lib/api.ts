@@ -3,8 +3,19 @@
  * Base URL is configured via NEXT_PUBLIC_API_URL env var.
  */
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://dwain-unmystic-addyson.ngrok-free.dev'
-const EXTRACTOR_URL = process.env.NEXT_PUBLIC_EXTRACTOR_URL ?? 'http://localhost:8001'
+const IS_SERVER = typeof window === 'undefined'
+
+// On the server (Server Components/Actions), we hit the backend directly.
+// Use API_BASE_URL env var if set (for custom deployments), else default to
+// 127.0.0.1 (NOT localhost — avoids IPv6 resolution delay on macOS/Node.js 17+).
+// On the client (useEffect/Event Handlers), we hit the /backend rewrite so Next.js proxies it for us.
+const BASE_URL = IS_SERVER
+    ? (process.env.API_BASE_URL ?? 'https://dwain-unmystic-addyson.ngrok-free.dev')
+    : '/backend'
+
+const EXTRACTOR_URL = IS_SERVER
+    ? (process.env.EXTRACTOR_BASE_URL ?? 'http://127.0.0.1:8001')
+    : '/extractor'
 
 // ─── Response types ──────────────────────────────────────────────────────────
 
@@ -37,8 +48,9 @@ async function apiFetch<T>(
     path: string,
     options: RequestInit = {},
     token?: string,
-    timeoutMs = 15_000,
+    timeoutMs = 45_000,
 ): Promise<ApiResponse<T>> {
+    console.log(`[API] ${options.method || 'GET'} ${path}`)
     const headers: Record<string, string> = {
         'Content-Type': 'application/json',
         ...(options.headers as Record<string, string>),
@@ -51,16 +63,22 @@ async function apiFetch<T>(
     const controller = new AbortController()
     const timer = setTimeout(() => controller.abort(), timeoutMs)
 
+    // Normalize URL: remove trailing slash from base and leading slash from path to join cleanly
+    const normalizedBase = BASE_URL.endsWith('/') ? BASE_URL.slice(0, -1) : BASE_URL
+    const normalizedPath = path.startsWith('/') ? path : `/${path}`
+    const fullUrl = `${normalizedBase}${normalizedPath}`
+
     let res: Response
     try {
-        res = await fetch(`${BASE_URL}${path}`, {
+        res = await fetch(fullUrl, {
             ...options,
             headers,
             signal: controller.signal,
         })
     } catch (err: unknown) {
+        console.error(`[API ERROR] ${options.method || 'GET'} ${path}:`, err)
         if (err instanceof Error && err.name === 'AbortError') {
-            throw new Error('Request timed out. Please try again.')
+            throw new Error(`Request timed out. Please check the backend is running at ${BASE_URL}.`)
         }
         throw err
     } finally {
@@ -134,6 +152,7 @@ export interface Assignment {
     created_at?: string
     classroom_id?: string
     batch_ids?: string[]
+    submitted?: boolean
 }
 
 export interface AssignmentCreate {
@@ -266,12 +285,15 @@ export interface StudentAssignment {
     student_id: string
     assignment_text: string
     honeypot_phrase: string | null
+    hidden_trigger_phrase: string | null
+    wrong_fact_signal: string | null
     mode: 'proactive' | 'reactive'
     topic?: string
     difficulty?: 'easy' | 'medium' | 'hard'
     enable_behavioral?: boolean
     enable_socratic?: boolean
     created_at?: string
+    submitted?: boolean
 }
 
 export const studentApi = {
@@ -296,7 +318,6 @@ export interface SubmissionResult {
     assignment_id: string
     essay_text: string
     honeypot_score: number | null
-    replay_log?: string | null
 }
 
 export interface BehaviorLog {
@@ -316,15 +337,45 @@ export const submissionsApi = {
             body: JSON.stringify(payload),
         }, token),
 
-    /** List all submissions for an assignment (teacher view) */
-    listByAssignment: (assignment_id: string, token: string) =>
-        apiFetch<any[]>(`/api/submissions/assignment/${assignment_id}`, {}, token),
-
     /** Log behavioral telemetry for a submission */
     logBehavior: (payload: BehaviorLog, token: string) =>
         apiFetch('/api/behavior/log', {
             method: 'POST',
             body: JSON.stringify(payload),
+        }, token),
+
+    /** List all submissions for an assignment (teacher view) */
+    listByAssignment: (assignment_id: string, token: string) =>
+        apiFetch<any[]>(`/api/submissions/assignment/${assignment_id}`, {}, token),
+}
+
+// ─── Replay endpoints ──────────────────────────────────────────────────────────
+
+export const replayApi = {
+    /** Fetch the WritingDNA replay log for a submission (teacher view) */
+    getLog: (submission_id: string, token: string) =>
+        apiFetch<import('./replayEngine').ReplayLog>(`/api/submissions/${submission_id}/replay`, {}, token),
+}
+
+// ─── Snapshot endpoints ────────────────────────────────────────────────────────
+
+export interface SnapshotEntry {
+    t: number
+    code: string
+}
+
+export const snapshotsApi = {
+    /** Periodically push new in-memory snapshots to the server for safe-keeping */
+    push: (assignment_id: string, snapshots: SnapshotEntry[], token: string) =>
+        apiFetch('/api/snapshots', {
+            method: 'POST',
+            body: JSON.stringify({ assignment_id, snapshots }),
+        }, token),
+
+    /** After submission is created, link the saved snapshots to the submission ID */
+    link: (assignment_id: string, submission_id: string, token: string) =>
+        apiFetch(`/api/snapshots/link?assignment_id=${assignment_id}&submission_id=${submission_id}`, {
+            method: 'PATCH',
         }, token),
 }
 
@@ -333,6 +384,8 @@ export const submissionsApi = {
 export interface SocraticChallenge {
     submission_id: string
     challenge: string
+    started_at: string
+    time_limit: number
 }
 
 export interface SocraticScoreResult {
@@ -340,6 +393,8 @@ export interface SocraticScoreResult {
     ownership_score: number
     analysis: string
     followup: string | null
+    followup_started_at: string | null
+    question_just_answered: number
 }
 
 export const socraticApi = {
@@ -355,6 +410,14 @@ export const socraticApi = {
             method: 'POST',
             body: JSON.stringify(payload),
         }, token, 60_000),
+
+    /** Record a paste violation during the Socratic challenge */
+    pasteViolation: (submission_id: string, token: string) =>
+        apiFetch<{ paste_violations: number; paste_penalty: number }>(
+            `/api/socratic/paste-violation?submission_id=${submission_id}`,
+            { method: 'POST' },
+            token,
+        ),
 }
 
 // ─── Extractor endpoints ──────────────────────────────────────────────────────
@@ -385,15 +448,121 @@ export const extractorApi = {
     }
 }
 
-// ─── Replay endpoints (teacher) ──────────────────────────────────────────────
+// ─── Reactive mode endpoints ─────────────────────────────────────────────────
 
-import type { ReplayLog } from './replayEngine'
+export interface ReactiveUploadResult {
+    submission_id: string
+    filename: string
+    text_length: number
+    challenge: string | null
+    started_at: string | null
+    time_limit: number
+}
 
-export const replayApi = {
-    /**
-     * Fetch a student's WritingDNA replay log for a submission.
-     * Returns the parsed ReplayLog object.
-     */
-    getLog: (submission_id: string, token: string) =>
-        apiFetch<ReplayLog | null>(`/api/submissions/${submission_id}/replay`, {}, token),
+export interface ReactiveSocraticResult {
+    socratic_score: number
+    analysis: string
+    followup: string | null
+    followup_started_at: string | null
+    question_just_answered: number
+}
+
+export interface ReactiveAnalysisResult {
+    total_submissions: number
+    flagged_pairs: Array<{
+        student_a: string
+        student_b: string
+        submission_a: string
+        submission_b: string
+        similarity: number
+        method_signal: 'lexical' | 'semantic'
+    }>
+    results: Array<{
+        submission_id: string
+        student_id: string
+        filename: string
+        max_similarity: number
+        most_similar_to: string | null
+        similarity_method: 'lexical' | 'semantic'
+        tfidf_originality: number
+        socratic_score: number
+        ownership_score: number
+    }>
+}
+
+export interface ReactiveResultEntry {
+    submission_id: string
+    student_id: string
+    student_name: string
+    student_email: string | null
+    filename: string
+    submitted_at: string
+    scores: {
+        similarity_score: number
+        similarity_method: 'lexical' | 'semantic'
+        tfidf_originality: number
+        socratic_score: number
+        ownership_score: number
+    } | null
+}
+
+export interface ReactiveSubmissionStatus {
+    submission: {
+        id: string
+        classroom_assignment_id: string
+        student_id: string
+        filename: string
+        extracted_text: string
+        created_at: string
+    }
+    socratic: {
+        challenge: string
+        student_response: string | null
+        socratic_score: number | null
+        analysis: string | null
+        followup: string | null
+        started_at: string | null
+        time_limit: number
+    } | null
+}
+
+export const reactiveApi = {
+    /** Upload a file submission for a reactive assignment */
+    upload: async (assignment_id: string, file: File, token: string): Promise<ApiResponse<ReactiveUploadResult>> => {
+        const formData = new FormData()
+        formData.append('file', file)
+        const normalizedBase = BASE_URL.endsWith('/') ? BASE_URL.slice(0, -1) : BASE_URL
+        const res = await fetch(`${normalizedBase}/api/reactive/upload?classroom_assignment_id=${assignment_id}`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}` },
+            body: formData,
+        })
+        if (!res.ok) {
+            const json = await res.json().catch(() => ({}))
+            const detail = json?.detail ?? json?.message ?? 'Upload failed'
+            throw new Error(typeof detail === 'string' ? detail : JSON.stringify(detail))
+        }
+        return res.json()
+    },
+
+    /** Score the student’s Socratic response for a reactive submission */
+    scoreResponse: (payload: { submission_id: string; student_response: string }, token: string) =>
+        apiFetch<ReactiveSocraticResult>('/api/reactive/score', {
+            method: 'POST',
+            body: JSON.stringify(payload),
+        }, token, 60_000),
+
+    /** Get submission status + socratic state */
+    getStatus: (submission_id: string, token: string) =>
+        apiFetch<ReactiveSubmissionStatus>(`/api/reactive/submission/${submission_id}`, {}, token),
+
+    /** Trigger analysis for an assignment (teacher) */
+    runAnalysis: (classroom_assignment_id: string, token: string) =>
+        apiFetch<ReactiveAnalysisResult>(`/api/reactive/analyze?classroom_assignment_id=${classroom_assignment_id}`, {
+            method: 'POST',
+        }, token, 120_000),
+
+    /** Get analysis results for an assignment (teacher) */
+    getResults: (classroom_assignment_id: string, token: string) =>
+        apiFetch<ReactiveResultEntry[]>(`/api/reactive/results/${classroom_assignment_id}`, {}, token),
 }

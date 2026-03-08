@@ -192,6 +192,16 @@
     letter-spacing: 0.05em;
 }
 
+.success {
+    font-family: var(--font-body);
+    font-size: 0.72rem;
+    color: #27ae60;
+    background: rgba(39, 174, 96, 0.1);
+    border: 1px solid rgba(39, 174, 96, 0.3);
+    padding: 0.6rem 0.8rem;
+    letter-spacing: 0.05em;
+}
+
 .divider {
     height: 1px;
     background: var(--border);

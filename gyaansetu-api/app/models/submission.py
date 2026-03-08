@@ -28,7 +28,7 @@ class BehaviorLogCreate(BaseModel):
     paste_events: list[dict]
     largest_paste: int
     tab_switches: int
-    idle_time: float
+    idle_time: int
 
 
 class UploadCreate(BaseModel):

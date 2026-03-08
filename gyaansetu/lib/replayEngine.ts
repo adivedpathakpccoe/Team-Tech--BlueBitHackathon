@@ -38,6 +38,8 @@ export interface ReplayLog {
     pastes: ReplayPaste[]
     tabSwitches: number
     totalDuration: number
+    /** Total idle time in seconds (gaps > 2 min between keystrokes) */
+    idleTime?: number
 }
 
 // ─── Binary Search ────────────────────────────────────────────────────────────

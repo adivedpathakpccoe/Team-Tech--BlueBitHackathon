@@ -18,6 +18,7 @@ export default function RootLayout({
     <html
       lang="en"
       className={`${oswald.variable} ${courierPrime.variable} ${playfairDisplay.variable}`}
+      data-scroll-behavior="smooth"
     >
       <body>
         {children}

@@ -1,10 +1,20 @@
 import json
+import re
 from uuid import UUID
 import google.generativeai as genai
 from supabase import AsyncClient
 from app.config import settings
 from app.services.base import BaseService
 from app.core.exceptions import ExternalServiceError, NotFoundError
+
+
+def _parse_gemini_json(text: str) -> dict:
+    """Strip markdown code fences Gemini sometimes wraps JSON in, then parse."""
+    text = text.strip()
+    # Remove ```json ... ``` or ``` ... ``` wrappers
+    text = re.sub(r"^```(?:json)?\s*", "", text)
+    text = re.sub(r"\s*```$", "", text)
+    return json.loads(text.strip())
 
 genai.configure(api_key=settings.gemini_api_key)
 _model = genai.GenerativeModel("gemini-2.5-flash")
@@ -60,7 +70,7 @@ class SocraticService(BaseService):
         prompt = _CHALLENGE_PROMPT.format(essay=essay_text)
         try:
             response = await _model.generate_content_async(prompt)
-            parsed = json.loads(response.text)
+            parsed = _parse_gemini_json(response.text)
         except Exception as e:
             raise ExternalServiceError("Gemini", str(e))
 
@@ -87,7 +97,7 @@ class SocraticService(BaseService):
         )
         try:
             response = await _model.generate_content_async(prompt)
-            parsed = json.loads(response.text)
+            parsed = _parse_gemini_json(response.text)
         except Exception as e:
             raise ExternalServiceError("Gemini", str(e))
 

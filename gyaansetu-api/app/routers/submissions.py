@@ -19,6 +19,7 @@ def get_submission_service(db: DbDep) -> SubmissionService:
 SubmissionServiceDep = Annotated[SubmissionService, Depends(get_submission_service)]
 
 
+@router.post("", response_model=dict, status_code=201)
 @router.post("/", response_model=dict, status_code=201)
 async def create_submission(body: SubmissionCreate, current_user: CurrentUserDep, svc: SubmissionServiceDep, db: DbDep):
     """Accept a proactive essay submission and trigger honeypot scoring."""
@@ -40,6 +41,7 @@ async def create_submission(body: SubmissionCreate, current_user: CurrentUserDep
     return ok(data={**result, "honeypot_score": honeypot_score}, message="Submission created")
 
 
+@router.get("", response_model=dict)
 @router.get("/", response_model=dict)
 async def list_my_submissions(
     current_user: CurrentUserDep,
@@ -83,15 +85,41 @@ async def get_submission(submission_id: UUID, _: CurrentUserDep, svc: Submission
 
 @router.get("/{submission_id}/replay", response_model=dict)
 async def get_submission_replay(submission_id: UUID, _: CurrentUserDep, db: DbDep):
-    """Fetch the WritingDNA replay log for a specific submission (teacher view)."""
-    res = await db.table("submissions").select("replay_log").eq("id", str(submission_id)).maybe_single().execute()
-    if not res.data or not res.data.get("replay_log"):
-        return ok(data=None)
+    """Fetch the WritingDNA replay log for a specific submission (teacher view).
 
-    # Return the stringified JSON as a parsed object
+    Primary source: the replay_log JSON blob stored on the submission.
+    Fallback: reconstruct from the submission_snapshots table (used when the
+    student's session was interrupted before the final JSON was serialised).
+    """
     import json
-    try:
-        log_obj = json.loads(res.data["replay_log"])
+
+    res = await db.table("submissions").select("replay_log").eq("id", str(submission_id)).maybe_single().execute()
+
+    # ── Primary: full replay_log JSON stored at submission time ──────────────
+    if res.data and res.data.get("replay_log"):
+        try:
+            log_obj = json.loads(res.data["replay_log"])
+            return ok(data=log_obj)
+        except Exception:
+            pass  # fall through to snapshot reconstruction
+
+    # ── Fallback: reconstruct from the incremental snapshot table ────────────
+    snaps_res = await db.table("submission_snapshots") \
+        .select("t, code") \
+        .eq("submission_id", str(submission_id)) \
+        .order("t") \
+        .execute()
+
+    if snaps_res.data:
+        snapshots = snaps_res.data  # list of {t, code}
+        log_obj = {
+            "snapshots": snapshots,
+            "events": [],
+            "pastes": [],
+            "tabSwitches": 0,
+            "totalDuration": max(s["t"] for s in snapshots),
+            "idleTime": 0,
+        }
         return ok(data=log_obj)
-    except:
-        return ok(data=None)
+
+    return ok(data=None)
