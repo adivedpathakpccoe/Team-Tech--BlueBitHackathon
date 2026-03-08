@@ -2,8 +2,11 @@
 
 .page {
     min-height: 100vh;
-    background: var(--cream);
+    background: #f0ece0;
+    /* Use hardcoded cream or variable */
     color: var(--ink);
+    --muted: rgba(8, 8, 6, 0.45);
+    /* Override the light muted color from globals.css */
 }
 
 .topbar {
@@ -163,6 +166,10 @@
     min-height: 280px;
     transition: border-color 0.2s;
     box-sizing: border-box;
+}
+
+.editor::placeholder {
+    color: rgba(8, 8, 6, 0.35);
 }
 
 .editor:focus {
@@ -442,7 +449,9 @@
 }
 
 @keyframes spin {
-    to { transform: rotate(360deg); }
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 .stateIcon {

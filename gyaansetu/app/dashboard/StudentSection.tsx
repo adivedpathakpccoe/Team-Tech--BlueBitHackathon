@@ -2,9 +2,10 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { studentApi, classroomsApi, type EnrolledBatch, type Assignment } from '@/lib/api'
+import { studentApi, classroomsApi, extractorApi, type EnrolledBatch, type Assignment } from '@/lib/api'
 import styles from './dashboard.module.css'
 import { toast } from 'sonner'
+import { useRef } from 'react'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -31,6 +32,10 @@ export default function StudentSection({ token }: { token: string }) {
     const [isJoinModalOpen, setIsJoinModalOpen] = useState(false)
     const [isJoining, setIsJoining] = useState(false)
     const [expandedBatchId, setExpandedBatchId] = useState<string | null>(null)
+    const [extractingId, setExtractingId] = useState<string | null>(null)
+    const [extractedContent, setExtractedContent] = useState<{ filename: string, content: string } | null>(null)
+    const fileInputRef = useRef<HTMLInputElement>(null)
+    const activeAssignmentRef = useRef<string | null>(null)
 
     // ── Fetch enrolled batches ──────────────────────────────────────────────
 
@@ -119,6 +124,34 @@ export default function StudentSection({ token }: { token: string }) {
         }
     }
 
+    // ── Handle file upload and extraction ────────────────────────────────────
+
+    const handleFileUpload = async (assignmentId: string, file: File) => {
+        setExtractingId(assignmentId)
+        try {
+            const res = await extractorApi.extract(file)
+            if (res.success) {
+                setExtractedContent({
+                    filename: res.filename,
+                    content: res.content
+                })
+                toast.success('Content extracted successfully')
+            } else {
+                toast.error(res.error || 'Failed to extract content')
+            }
+        } catch (error) {
+            console.error('Extraction error:', error)
+            toast.error('Failed to connect to extraction service')
+        } finally {
+            setExtractingId(null)
+        }
+    }
+
+    const triggerFileInput = (assignmentId: string) => {
+        activeAssignmentRef.current = assignmentId
+        fileInputRef.current?.click()
+    }
+
     // ── Render ─────────────────────────────────────────────────────────────
 
     return (
@@ -201,30 +234,55 @@ export default function StudentSection({ token }: { token: string }) {
                                                 {batch.assignments.map((a) => (
                                                     <div
                                                         key={a.id}
-                                                        className={styles.assignmentRow}
+                                                        className={`${styles.assignmentRow} ${a.mode === 'reactive' ? styles.assignmentRowReactive : ''}`}
                                                         style={{ cursor: 'pointer' }}
                                                         onClick={() => router.push(`/dashboard/assignment/${a.id}`)}
                                                     >
-                                                        <div className={styles.assignmentTopic}>
-                                                            {a.topic}
+                                                        <div className={styles.assignmentMain}>
+                                                            <div className={styles.assignmentTopic}>
+                                                                {a.topic}
+                                                            </div>
+                                                            <div className={styles.assignmentBadges}>
+                                                                <span
+                                                                    className={`${styles.diffBadge} ${difficultyStyle[a.difficulty] ?? ''}`}
+                                                                >
+                                                                    {a.difficulty}
+                                                                </span>
+                                                                <span className={`${styles.modeBadge} ${a.mode === 'reactive' ? styles.modeBadgeReactive : ''}`}>
+                                                                    {a.mode}
+                                                                </span>
+                                                                <span className={styles.modeBadge} style={{ color: '#1a8c82', background: '#e8f4f3' }}>
+                                                                    Open →
+                                                                </span>
+                                                            </div>
                                                         </div>
-                                                        <div className={styles.assignmentBadges}>
-                                                            <span
-                                                                className={`${styles.diffBadge} ${difficultyStyle[a.difficulty] ?? ''}`}
-                                                            >
-                                                                {a.difficulty}
-                                                            </span>
-                                                            <span className={styles.modeBadge}>
-                                                                {a.mode}
-                                                            </span>
-                                                            <span className={styles.modeBadge} style={{ color: '#1a8c82', background: '#e8f4f3' }}>
-                                                                Open →
-                                                            </span>
-                                                        </div>
+
                                                         {a.description && (
                                                             <p className={styles.assignmentDesc}>
                                                                 {a.description}
                                                             </p>
+                                                        )}
+
+                                                        {a.mode === 'reactive' && (
+                                                            <div className={styles.assignmentActions} onClick={(e) => e.stopPropagation()}>
+                                                                <button
+                                                                    className={styles.uploadBtn}
+                                                                    onClick={() => triggerFileInput(a.id)}
+                                                                    disabled={extractingId === a.id}
+                                                                >
+                                                                    {extractingId === a.id ? (
+                                                                        <>
+                                                                            <span className={styles.spinnerIcon} /> Extracting...
+                                                                        </>
+                                                                    ) : (
+                                                                        <>
+                                                                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" x2="12" y1="3" y2="15" /></svg>
+                                                                            Upload Submission
+                                                                        </>
+                                                                    )}
+                                                                </button>
+                                                                <span className={styles.uploadHint}>Supporting PDF, DOCX, PPTX, etc.</span>
+                                                            </div>
                                                         )}
                                                     </div>
                                                 ))}
@@ -281,6 +339,49 @@ export default function StudentSection({ token }: { token: string }) {
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Hidden File Input */}
+            <input
+                type="file"
+                ref={fileInputRef}
+                style={{ display: 'none' }}
+                onChange={(e) => {
+                    const file = e.target.files?.[0]
+                    if (file && activeAssignmentRef.current) {
+                        handleFileUpload(activeAssignmentRef.current, file)
+                    }
+                    e.target.value = '' // Reset
+                }}
+            />
+
+            {/* Extracted Content Modal */}
+            {extractedContent && (
+                <div className={styles.modalOverlay} onClick={() => setExtractedContent(null)}>
+                    <div
+                        className={`${styles.modal} ${styles.extractionModal}`}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className={styles.modalHeader}>
+                            <h3 className={styles.modalTitle}>Extraction Result</h3>
+                            <div className={styles.extractionFilename}>{extractedContent.filename}</div>
+                        </div>
+
+                        <div className={styles.extractionContent}>
+                            <pre className={styles.preContent}>{extractedContent.content}</pre>
+                        </div>
+
+                        <div className={styles.modalActions}>
+                            <button
+                                type="button"
+                                className={styles.submitBtn}
+                                onClick={() => setExtractedContent(null)}
+                            >
+                                Done
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

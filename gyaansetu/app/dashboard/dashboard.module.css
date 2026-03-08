@@ -748,3 +748,113 @@
 .inlineJoinBtn:hover {
     color: var(--ink);
 }
+
+.assignmentRowReactive {
+    border-left: 3px solid var(--teal);
+    padding-left: 1.25rem !important;
+}
+
+.assignmentMain {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+}
+
+.modeBadgeReactive {
+    color: var(--teal) !important;
+    background: rgba(26, 140, 130, 0.1) !important;
+    border: 1px solid rgba(26, 140, 130, 0.2);
+}
+
+.assignmentActions {
+    margin-top: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.uploadBtn {
+    background: var(--ink);
+    color: var(--cream);
+    border: none;
+    padding: 0.75rem 1.2rem;
+    font-family: var(--font-display);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    width: fit-content;
+    transition: background 0.2s, transform 0.1s;
+}
+
+.uploadBtn:hover:not(:disabled) {
+    background: var(--teal);
+    transform: translateY(-1px);
+}
+
+.uploadBtn:disabled {
+    opacity: 0.7;
+    cursor: wait;
+}
+
+.uploadHint {
+    font-family: var(--font-body);
+    font-size: 0.7rem;
+    color: var(--muted);
+    letter-spacing: 0.05em;
+}
+
+.spinnerIcon {
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    border-top-color: white;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Extraction Modal */
+
+.extractionModal {
+    width: 90%;
+    max-width: 800px;
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.extractionFilename {
+    font-family: var(--font-body);
+    font-size: 0.75rem;
+    color: var(--muted);
+    margin-top: 0.25rem;
+}
+
+.extractionContent {
+    flex: 1;
+    overflow-y: auto;
+    background: #fdfcf8;
+    border: 1px solid var(--border-dark);
+    padding: 1.5rem;
+    margin: 1rem 0;
+}
+
+.preContent {
+    font-family: var(--font-body);
+    font-size: 0.95rem;
+    line-height: 1.7;
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: var(--ink);
+}

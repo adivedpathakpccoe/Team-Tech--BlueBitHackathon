@@ -4,6 +4,7 @@
  */
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'https://rg89c906-8000.inc1.devtunnels.ms'
+const EXTRACTOR_URL = process.env.NEXT_PUBLIC_EXTRACTOR_URL ?? 'http://localhost:8001'
 
 // ─── Response types ──────────────────────────────────────────────────────────
 
@@ -347,4 +348,32 @@ export const socraticApi = {
             method: 'POST',
             body: JSON.stringify(payload),
         }, token, 60_000),
+}
+
+// ─── Extractor endpoints ──────────────────────────────────────────────────────
+
+export interface ExtractionResponse {
+    filename: string
+    content: string
+    success: boolean
+    error?: string
+}
+
+export const extractorApi = {
+    /** Extract text content from an uploaded file */
+    extract: async (file: File): Promise<ExtractionResponse> => {
+        const formData = new FormData()
+        formData.append('file', file)
+
+        const res = await fetch(`${EXTRACTOR_URL}/extract`, {
+            method: 'POST',
+            body: formData,
+        })
+
+        if (!res.ok) {
+            throw new Error('Failed to connect to extraction service')
+        }
+
+        return await res.json()
+    }
 }

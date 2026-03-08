@@ -18,7 +18,7 @@ export default async function AssignmentPage({ params }: AssignmentPageProps) {
     }
 
     return (
-        <div className={styles.page}>
+        <div className={`${styles.page} soberDashboard`}>
             <div className={styles.topbar}>
                 <Link href="/dashboard" className={styles.brand}>
                     GYAAN<span className={styles.brandAccent}>SETU</span>
