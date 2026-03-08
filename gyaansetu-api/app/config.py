@@ -13,6 +13,11 @@ class Settings(BaseSettings):
     # Gemini
     gemini_api_key: str
 
+    # JWT
+    jwt_secret: str
+    jwt_algorithm: str = "HS256"
+    access_token_expire_minutes: int = 60
+
     # App
     environment: str = "development"
     debug: bool = False
