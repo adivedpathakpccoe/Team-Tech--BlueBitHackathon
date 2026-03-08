@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.database import init_supabase
 from app.core.exceptions import register_exception_handlers
-from app.routers import auth, assignments
+from app.routers import auth, assignments, classrooms
 
 
 @asynccontextmanager
@@ -37,6 +37,7 @@ def create_app() -> FastAPI:
 
     app.include_router(auth.router, prefix="/api/auth", tags=["Auth"])
     app.include_router(assignments.router, prefix="/api/assignments", tags=["Assignments"])
+    app.include_router(classrooms.router, prefix="/api/classrooms", tags=["Classrooms"])
 
     return app
 
