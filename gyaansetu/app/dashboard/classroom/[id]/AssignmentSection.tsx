@@ -56,8 +56,9 @@ export default function AssignmentSection({ classroomId, token }: { classroomId:
             toast.info('Generating assignment data with AI...')
             const res = await assignmentsApi.generateData({ topic, difficulty }, token)
             if (res.ok && res.data) {
-                if (res.data.description) setDescription(res.data.description)
                 if (res.data.topic) setTopic(res.data.topic)
+                if (res.data.description) setDescription(res.data.description)
+                if (res.data.difficulty) setDifficulty(res.data.difficulty as 'easy' | 'medium' | 'hard')
                 toast.success('AI generation complete! You can now review and refine.')
             }
         } catch (error) {

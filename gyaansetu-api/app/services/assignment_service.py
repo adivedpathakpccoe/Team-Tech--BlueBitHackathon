@@ -17,55 +17,91 @@ logger = logging.getLogger(__name__)
 _ZWSP = "\u200b"
 _ZWNJ = "\u200c"
 
-# Required fields and their validation rules
-_REQUIRED_FIELDS = {
-    "assignment_text": lambda v: isinstance(v, str) and len(v) > 50,
-    "honeypot_phrase": lambda v: isinstance(v, str) and 5 <= len(v.split()) <= 20,
-    "expected_interpretations": lambda v: isinstance(v, list) and len(v) == 3 and all(isinstance(i, str) for i in v),
-    "hidden_trigger_phrase": lambda v: isinstance(v, str) and 4 <= len(v.split()) <= 8,
-    "wrong_fact_signal": lambda v: isinstance(v, str) and len(v) > 0,
+# ── Validation ────────────────────────────────────────────────────────────────
+
+_REQUIRED_FIELDS: dict[str, tuple[str, callable]] = {
+    "assignment_text": (
+        "A 2–3 sentence academic prompt (>50 chars)",
+        lambda v: isinstance(v, str) and len(v.strip()) > 50,
+    ),
+    "honeypot_phrase": (
+        "A 5–20 word phrase that appears verbatim in assignment_text",
+        lambda v: isinstance(v, str) and 5 <= len(v.split()) <= 20,
+    ),
+    "expected_interpretations": (
+        "Exactly 3 distinct string interpretations",
+        lambda v: (
+            isinstance(v, list)
+            and len(v) == 3
+            and all(isinstance(i, str) and len(i.split()) >= 5 for i in v)
+        ),
+    ),
+    "hidden_trigger_phrase": (
+        "A 4–8 word topic-specific phrase NOT in assignment_text",
+        lambda v: isinstance(v, str) and 4 <= len(v.split()) <= 8,
+    ),
+    "wrong_fact_signal": (
+        "A plausible but subtly false claim (10–80 chars)",
+        lambda v: isinstance(v, str) and 10 <= len(v.strip()) <= 80,
+    ),
 }
 
-_SYSTEM_PROMPT = dedent("""\
-    You are an academic content generator. Your output is always valid JSON — no markdown, 
-    no code fences, no explanation. Every string value must be original, specific, and 
-    non-generic. Never reuse phrases across fields.
-""")
+# ── Shared model priming ──────────────────────────────────────────────────────
 
-_USER_PROMPT_TEMPLATE = dedent("""\
-    Generate a unique assignment variant for the following parameters:
+_JSON_ONLY_PRIME = [
+    {"role": "user", "parts": [
+        "You are a JSON-only responder. Output raw JSON with no markdown, "
+        "no code fences, and no explanatory text — ever."
+    ]},
+    {"role": "model", "parts": ["Understood. I will output only raw JSON."]},
+]
+
+# ── Assignment variant prompt ─────────────────────────────────────────────────
+
+_VARIANT_PROMPT = dedent("""\
+    Generate a single assignment variant as a JSON object.
 
     Topic: {topic}
     Difficulty: {difficulty}
 
-    Requirements per field:
+    ─── FIELD SPECIFICATIONS ────────────────────────────────────────────────────
 
-    "assignment_text"
-      - 2-3 sentences forming a complete academic prompt
-      - Must ask the student to argue a specific, debatable stance
-      - Must NOT contain any of the phrases used in the other fields below
+    "assignment_text"  (string)
+        • 2–3 complete sentences forming an academic writing prompt.
+        • Must ask the student to argue a specific, debatable position.
+        • Calibrated to the stated difficulty level.
+        • Must contain the honeypot_phrase verbatim (see below).
 
-    "honeypot_phrase"
-      - 5-20 words, naturally embedded in the assignment_text above
-      - Phrased so that an AI plagiarising the prompt would reproduce it verbatim
-      - Must appear word-for-word somewhere inside assignment_text
+    "honeypot_phrase"  (string, 5–20 words)
+        • A natural-sounding clause or sentence fragment.
+        • Must appear word-for-word inside assignment_text.
+        • Purpose: if an AI paraphrases the prompt rather than responding
+          to it, this phrase should surface in its output.
 
-    "expected_interpretations"
-      - Exactly 3 distinct, non-overlapping ways a student could interpret the prompt
-      - Each must be a complete sentence, 10-25 words
+    "expected_interpretations"  (array of exactly 3 strings)
+        • Three distinct, non-overlapping angles a genuine student might take.
+        • Each must be a complete sentence of 10–25 words.
+        • Must NOT overlap with wording in assignment_text or honeypot_phrase.
 
-    "hidden_trigger_phrase"
-      - 4-8 words, highly specific to this topic (not a generic phrase)
-      - Must NOT appear in assignment_text — it is injected separately as a hidden element
-      - Example of BAD (too generic): "please include this in your response"
-      - Example of GOOD (specific): "the Malthusian ceiling collapsed before 1820"
+    "hidden_trigger_phrase"  (string, 4–8 words)
+        • A highly specific, topic-anchored phrase.
+        • Must NOT appear in assignment_text — it is injected as a hidden
+          steganographic element to test whether AI copies it.
+        • BAD example (too generic): "please include this in your response"
+        • GOOD example (specific): "the Malthusian ceiling collapsed before 1820"
 
-    "wrong_fact_signal"
-      - A plausible-sounding but factually incorrect claim or fabricated citation
-      - Short substring (10-30 words) that an AI fed this prompt would reproduce
-      - Must be subtly wrong, not obviously absurd
+    "wrong_fact_signal"  (string, 10–80 characters)
+        • A plausible-sounding but factually incorrect claim or fabricated
+          citation. Subtly wrong — not obviously absurd.
+        • An AI reproducing this verbatim signals it is parroting the prompt.
 
-    Return ONLY this JSON shape:
+    ─── CONSTRAINTS ─────────────────────────────────────────────────────────────
+    • No field may reuse significant phrases from another field.
+    • All content must be original and specific to the topic — no filler.
+    • Difficulty level must influence vocabulary, cognitive depth, and scope.
+
+    ─── OUTPUT FORMAT ───────────────────────────────────────────────────────────
+    Return ONLY this JSON object, no other text:
     {{
       "assignment_text": "...",
       "honeypot_phrase": "...",
@@ -75,6 +111,38 @@ _USER_PROMPT_TEMPLATE = dedent("""\
     }}
 """)
 
+# ── Description prompt (teacher-facing, no honeypot) ─────────────────────────
+
+_DESC_PROMPT = dedent("""\
+    Design a classroom assignment for a teacher to assign to students.
+
+    Topic: {topic}
+    Difficulty: {difficulty}
+
+    ─── FIELD SPECIFICATIONS ────────────────────────────────────────────────────
+
+    "topic"  (string, 5–15 words)
+        • A refined, specific academic title. Clear, scoped, and unambiguous.
+
+    "description"  (string, 3–5 sentences)
+        • Detailed instructions telling the student exactly what to do,
+          argue, or produce. Include required components and constraints.
+        • Academic tone calibrated to the difficulty level.
+
+    "suggested_difficulty"  (one of: "easy", "medium", "hard")
+        • Reflect the actual cognitive demand implied by the topic and
+          instructions — not necessarily the input difficulty.
+
+    ─── OUTPUT FORMAT ───────────────────────────────────────────────────────────
+    Return ONLY this JSON object, no other text:
+    {{
+      "topic": "...",
+      "description": "...",
+      "suggested_difficulty": "easy" | "medium" | "hard"
+    }}
+""")
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _encode_zero_width(text: str) -> str:
     """Binary-encode a string using zero-width characters."""
@@ -83,70 +151,124 @@ def _encode_zero_width(text: str) -> str:
 
 
 def _strip_fences(raw: str) -> str:
-    """Remove markdown code fences if the model wraps its response."""
+    """Remove markdown code fences if the model wraps its response anyway."""
     raw = raw.strip()
     if raw.startswith("```"):
         parts = raw.split("```")
-        # parts[1] is the fenced block; strip leading language tag e.g. 'json\n'
         inner = parts[1]
-        if inner.startswith("json"):
+        if inner.lower().startswith("json"):
             inner = inner[4:]
         return inner.strip()
     return raw
 
 
-def _validate_parsed(parsed: dict) -> list[str]:
-    """Return a list of validation error messages; empty means valid."""
-    errors = []
-    for field, rule in _REQUIRED_FIELDS.items():
+def _validate_variant(parsed: dict) -> list[str]:
+    """Return validation error messages; empty list means valid."""
+    errors: list[str] = []
+    for field, (description, rule) in _REQUIRED_FIELDS.items():
         if field not in parsed:
-            errors.append(f"Missing field: {field!r}")
+            errors.append(f"Missing field '{field}': {description}")
         elif not rule(parsed[field]):
-            errors.append(f"Field {field!r} failed validation (value: {parsed[field]!r})")
+            errors.append(f"Field '{field}' failed validation — {description}. Got: {parsed[field]!r}")
     return errors
 
 
-def _validate_honeypot_embedded(parsed: dict) -> None:
-    """Warn (don't raise) if the honeypot phrase isn't actually in the assignment text."""
-    phrase = parsed.get("honeypot_phrase", "")
+def _check_honeypot_embedded(parsed: dict) -> None:
+    """Warn if the honeypot phrase isn't present verbatim in the assignment text."""
+    phrase = parsed.get("honeypot_phrase", "").strip()
     text = parsed.get("assignment_text", "")
     if phrase and phrase.lower() not in text.lower():
         logger.warning(
             "honeypot_phrase not found verbatim in assignment_text — "
-            "model may have ignored the embedding requirement. "
-            "phrase=%r", phrase
+            "model may have violated the embedding requirement. phrase=%r",
+            phrase,
         )
 
 
-async def _call_gemini(prompt: str, max_retries: int = 2) -> dict:
-    """Call Gemini, strip fences, parse JSON, validate, and retry on failure."""
+def _check_trigger_not_in_text(parsed: dict) -> None:
+    """Warn if the hidden trigger phrase leaked into the assignment text."""
+    trigger = parsed.get("hidden_trigger_phrase", "").strip()
+    text = parsed.get("assignment_text", "")
+    if trigger and trigger.lower() in text.lower():
+        logger.warning(
+            "hidden_trigger_phrase appears in assignment_text — "
+            "it should be injected separately, not embedded. trigger=%r",
+            trigger,
+        )
+
+# ── Gemini callers ────────────────────────────────────────────────────────────
+
+async def _call_gemini_variant(topic: str, difficulty: str, max_retries: int = 3) -> dict:
+    """Call Gemini to generate a full assignment variant with honeypot fields."""
+    prompt = _VARIANT_PROMPT.format(topic=topic, difficulty=difficulty)
     last_error: Exception | None = None
 
     for attempt in range(1, max_retries + 1):
         try:
             response = await _model.generate_content_async(
-                [
-                    {"role": "user", "parts": [_SYSTEM_PROMPT]},
-                    {"role": "model", "parts": ["Understood. I will return only valid JSON."]},
-                    {"role": "user", "parts": [prompt]},
-                ]
+                _JSON_ONLY_PRIME + [{"role": "user", "parts": [prompt]}]
             )
             raw = _strip_fences(response.text)
             parsed = json.loads(raw)
 
-            errors = _validate_parsed(parsed)
+            errors = _validate_variant(parsed)
             if errors:
-                raise ValueError(f"Schema validation failed: {errors}")
+                raise ValueError(f"Schema validation failed on attempt {attempt}: {errors}")
 
-            _validate_honeypot_embedded(parsed)
+            _check_honeypot_embedded(parsed)
+            _check_trigger_not_in_text(parsed)
             return parsed
 
-        except (json.JSONDecodeError, ValueError, KeyError) as e:
-            last_error = e
-            logger.warning("Gemini attempt %d/%d failed: %s", attempt, max_retries, e)
+        except (json.JSONDecodeError, ValueError, KeyError) as exc:
+            last_error = exc
+            logger.warning(
+                "Gemini variant attempt %d/%d failed: %s",
+                attempt, max_retries, exc,
+            )
 
-    raise ExternalServiceError("Gemini", f"All {max_retries} attempts failed. Last error: {last_error}")
+    raise ExternalServiceError(
+        "Gemini",
+        f"All {max_retries} variant generation attempts failed. Last error: {last_error}",
+    )
 
+
+async def _call_gemini_description(topic: str, difficulty: str, max_retries: int = 3) -> dict:
+    """Call Gemini to generate a teacher-facing assignment description (no honeypot fields)."""
+    prompt = _DESC_PROMPT.format(topic=topic, difficulty=difficulty)
+    last_error: Exception | None = None
+
+    for attempt in range(1, max_retries + 1):
+        try:
+            response = await _model.generate_content_async(
+                _JSON_ONLY_PRIME + [{"role": "user", "parts": [prompt]}]
+            )
+            raw = _strip_fences(response.text)
+            parsed = json.loads(raw)
+
+            topic_val = parsed.get("topic", "")
+            desc_val = parsed.get("description", "")
+            if not isinstance(topic_val, str) or not topic_val.strip():
+                raise ValueError("Missing or empty field: 'topic'")
+            if not isinstance(desc_val, str) or len(desc_val.strip()) < 30:
+                raise ValueError("Field 'description' is too short or missing")
+            if parsed.get("suggested_difficulty") not in ("easy", "medium", "hard"):
+                raise ValueError(f"Invalid suggested_difficulty: {parsed.get('suggested_difficulty')!r}")
+
+            return parsed
+
+        except (json.JSONDecodeError, ValueError, KeyError) as exc:
+            last_error = exc
+            logger.warning(
+                "Gemini description attempt %d/%d failed: %s",
+                attempt, max_retries, exc,
+            )
+
+    raise ExternalServiceError(
+        "Gemini",
+        f"All {max_retries} description generation attempts failed. Last error: {last_error}",
+    )
+
+# ── Service ───────────────────────────────────────────────────────────────────
 
 class AssignmentService(BaseService):
     """Service for generating and fetching student assignment variants."""
@@ -158,12 +280,11 @@ class AssignmentService(BaseService):
 
     async def generate(self, data: AssignmentCreate) -> dict:
         """Generate a unique assignment variant with honeypot traps and persist it."""
-        prompt = _USER_PROMPT_TEMPLATE.format(topic=data.topic, difficulty=data.difficulty)
-        parsed = await _call_gemini(prompt)
+        parsed = await _call_gemini_variant(data.topic, data.difficulty)
 
-        zero_width_encoded_id = None
-        hidden_trigger_phrase = None
-        wrong_fact_signal = None
+        zero_width_encoded_id: str | None = None
+        hidden_trigger_phrase: str | None = None
+        wrong_fact_signal: str | None = None
 
         if data.mode == "proactive":
             zero_width_encoded_id = _encode_zero_width(str(data.student_id))
@@ -182,23 +303,21 @@ class AssignmentService(BaseService):
         })
 
     async def generate_ai_data(self, topic: str, difficulty: str) -> dict:
-        """Call Gemini to generate assignment content (returns topic, instructions)."""
-        prompt = _USER_PROMPT_TEMPLATE.format(topic=topic, difficulty=difficulty)
-        parsed = await _call_gemini(prompt)
+        """Generate teacher-facing assignment content (no persistence)."""
+        parsed = await _call_gemini_description(topic, difficulty)
         return {
-            "topic": topic,
-            "description": parsed.get("assignment_text", ""),
-            "difficulty": difficulty
+            "topic": parsed["topic"].strip(),
+            "description": parsed["description"].strip(),
+            "difficulty": parsed["suggested_difficulty"],
         }
 
     async def create_classroom_assignment(self, classroom_id: UUID, data: dict) -> dict:
         """Create a new classroom-level assignment record."""
-        # Note: Ideally, this will be in a new table 'classroom_assignments'
-        # For simplicity, we assume this table matches the ClassroomAssignmentCreate schema.
-        res = await self.db.table("classroom_assignments").insert({
-            **data,
-            "classroom_id": str(classroom_id)
-        }).execute()
+        res = await (
+            self.db.table("classroom_assignments")
+            .insert({**data, "classroom_id": str(classroom_id)})
+            .execute()
+        )
         return res.data[0]
 
     async def list_classroom_assignments(self, classroom_id: UUID) -> list[dict]:
@@ -211,7 +330,6 @@ class AssignmentService(BaseService):
             .execute()
         )
         return res.data
-
 
     async def get_for_student(self, student_id: UUID) -> dict | None:
         """Fetch the most recent assignment variant for a given student."""
