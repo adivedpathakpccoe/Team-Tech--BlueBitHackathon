@@ -1,0 +1,238 @@
+.page {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    background: var(--ink);
+    position: relative;
+    z-index: 1;
+}
+
+.card {
+    width: 100%;
+    max-width: 440px;
+    border: 1px solid var(--border);
+    padding: 3rem 2.5rem;
+    background: var(--ink-soft);
+    position: relative;
+}
+
+.cardLabel {
+    position: absolute;
+    top: -1px;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--red);
+}
+
+.brand {
+    font-family: var(--font-display);
+    font-size: 1.3rem;
+    font-weight: 700;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--cream);
+    margin-bottom: 0.3rem;
+}
+
+.brandAccent {
+    color: var(--red);
+}
+
+.heading {
+    font-family: var(--font-display);
+    font-size: 1.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--cream);
+    letter-spacing: 0.05em;
+    margin-bottom: 0.4rem;
+    line-height: 1.1;
+    margin-top: 1.5rem;
+}
+
+.sub {
+    font-family: var(--font-body);
+    font-size: 0.78rem;
+    color: var(--muted);
+    margin-bottom: 2.5rem;
+    letter-spacing: 0.05em;
+}
+
+.form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.2rem;
+}
+
+.field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.label {
+    font-family: var(--font-body);
+    font-size: 0.58rem;
+    letter-spacing: 0.35em;
+    text-transform: uppercase;
+    color: var(--red);
+}
+
+.input {
+    background: var(--ink);
+    border: 1px solid var(--border);
+    color: var(--cream);
+    font-family: var(--font-body);
+    font-size: 0.88rem;
+    padding: 0.75rem 1rem;
+    outline: none;
+    transition: border-color 0.2s;
+    width: 100%;
+}
+
+.input::placeholder {
+    color: rgba(240, 236, 224, 0.2);
+}
+
+.input:focus {
+    border-color: rgba(240, 236, 224, 0.4);
+}
+
+/* Role selector */
+.roleGrid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    background: var(--border);
+}
+
+.roleOption {
+    background: var(--ink);
+    padding: 1rem;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    border: none;
+    text-align: left;
+    transition: background 0.2s;
+    position: relative;
+}
+
+.roleOption:hover {
+    background: rgba(240, 236, 224, 0.04);
+}
+
+.roleOptionActive {
+    background: rgba(192, 57, 43, 0.12);
+}
+
+.roleOptionActive::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--red);
+}
+
+.roleTitle {
+    font-family: var(--font-display);
+    font-size: 0.85rem;
+    font-weight: 600;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--cream);
+}
+
+.roleDesc {
+    font-family: var(--font-body);
+    font-size: 0.62rem;
+    color: var(--muted);
+    letter-spacing: 0.05em;
+}
+
+.btn {
+    font-family: var(--font-display);
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    background: var(--cream);
+    color: var(--ink);
+    padding: 0.95rem;
+    border: none;
+    cursor: pointer;
+    margin-top: 0.5rem;
+    transition: background 0.2s, transform 0.15s;
+    width: 100%;
+}
+
+.btn:hover:not(:disabled) {
+    background: var(--yellow);
+    transform: translateY(-1px);
+}
+
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.error {
+    font-family: var(--font-body);
+    font-size: 0.72rem;
+    color: var(--red);
+    background: rgba(192, 57, 43, 0.1);
+    border: 1px solid rgba(192, 57, 43, 0.3);
+    padding: 0.6rem 0.8rem;
+    letter-spacing: 0.05em;
+}
+
+.divider {
+    height: 1px;
+    background: var(--border);
+    margin: 1.5rem 0;
+}
+
+.switchText {
+    font-family: var(--font-body);
+    font-size: 0.72rem;
+    color: var(--muted);
+    text-align: center;
+    letter-spacing: 0.08em;
+}
+
+.switchLink {
+    color: var(--cream);
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 1px;
+    transition: color 0.2s, border-color 0.2s;
+}
+
+.switchLink:hover {
+    color: var(--yellow);
+    border-color: var(--yellow);
+}
+
+.loadingDot {
+    display: inline-block;
+    width: 4px;
+    height: 4px;
+    background: currentColor;
+    border-radius: 50%;
+    animation: pulse 0.8s ease-in-out infinite alternate;
+}
+
+@keyframes pulse {
+    from {
+        opacity: 0.3;
+    }
+
+    to {
+        opacity: 1;
+    }
+}

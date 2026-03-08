@@ -1,9 +1,6 @@
 import type { Metadata } from 'next'
 import './globals.css'
 import { oswald, courierPrime, playfairDisplay } from './fonts'
-import ClassBar from '@/components/layout/ClassBar'
-import Nav from '@/components/layout/Nav'
-import Footer from '@/components/layout/Footer'
 
 export const metadata: Metadata = {
   title: 'GYAANSETU — Academic Integrity Intelligence',
@@ -21,12 +18,8 @@ export default function RootLayout({
       lang="en"
       className={`${oswald.variable} ${courierPrime.variable} ${playfairDisplay.variable}`}
     >
-      <body>
-        <ClassBar />
-        <Nav />
-        {children}
-        <Footer />
-      </body>
+      <body>{children}</body>
     </html>
   )
 }
+

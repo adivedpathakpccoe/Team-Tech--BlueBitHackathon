@@ -48,22 +48,50 @@
     color: var(--cream);
 }
 
-.cta {
+
+.authButtons {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.signInBtn {
     font-family: var(--font-display);
-    font-size: 0.75rem;
+    font-size: 0.72rem;
     font-weight: 600;
-    letter-spacing: 0.3em;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--cream);
+    padding: 0.6rem 1.25rem;
+    border: 1px solid var(--border);
+    background: transparent;
+    transition: border-color 0.2s, color 0.2s, transform 0.15s;
+}
+
+.signInBtn:hover {
+    border-color: var(--cream);
+    color: var(--cream);
+    transform: translateY(-1px);
+}
+
+.signUpBtn {
+    font-family: var(--font-display);
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.25em;
     text-transform: uppercase;
     background: var(--red);
     color: var(--cream);
-    padding: 0.65rem 1.4rem;
+    padding: 0.6rem 1.25rem;
+    border: 1px solid var(--red);
     transition: background 0.2s, transform 0.15s;
 }
 
-.cta:hover {
+.signUpBtn:hover {
     background: var(--red-muted);
     transform: translateY(-1px);
 }
+
 
 @media (max-width: 900px) {
     .nav {
@@ -72,6 +100,13 @@
 
     .links {
         display: none;
+    }
+
+    .signInBtn,
+    .signUpBtn {
+        font-size: 0.65rem;
+        padding: 0.5rem 0.9rem;
+        letter-spacing: 0.15em;
     }
 }
 

@@ -16,9 +16,14 @@ export default function Nav() {
                 <Link href="#contact" className={styles.link}>Contact</Link>
             </div>
 
-            <Link href="#pricing" className={styles.cta}>
-                Request Access
-            </Link>
+            <div className={styles.authButtons}>
+                <Link href="/auth/login" className={styles.signInBtn}>
+                    Sign In
+                </Link>
+                <Link href="/auth/signup" className={styles.signUpBtn}>
+                    Sign Up
+                </Link>
+            </div>
         </nav>
     )
 }
