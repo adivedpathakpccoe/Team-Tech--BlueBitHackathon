@@ -54,7 +54,7 @@ class ClassroomService(BaseService):
             .order("created_at", desc=False)
             .execute()
         )
-        return res.data
+        return res.data or []
 
     async def get_classroom(self, classroom_id: UUID, teacher_id: UUID) -> dict:
         """Return a classroom, verifying ownership."""
@@ -112,7 +112,7 @@ class ClassroomService(BaseService):
             .execute()
         )
         batches = []
-        for batch in res.data:
+        for batch in (res.data or []):
             members = batch.pop("batch_members", [])
             batch["member_count"] = members[0]["count"] if members else 0
             batches.append(batch)
@@ -186,9 +186,13 @@ class ClassroomService(BaseService):
             .execute()
         )
         result = []
-        for m in res.data:
-            batch = m["batches"]
-            classroom = batch["classrooms"]
+        for m in (res.data or []):
+            batch = m.get("batches")
+            if not batch:
+                continue
+            classroom = batch.get("classrooms")
+            if not classroom:
+                continue
             result.append({
                 "batch_id": batch["id"],
                 "batch_name": batch["name"],
@@ -209,9 +213,9 @@ class ClassroomService(BaseService):
         
         # All batches the student is enrolled in for this classroom
         my_batch_ids = {
-            m["batch_id"] 
-            for m in membership_res.data 
-            if m["batches"]["classroom_id"] == str(classroom_id)
+            m["batch_id"]
+            for m in (membership_res.data or [])
+            if m.get("batches") and m["batches"].get("classroom_id") == str(classroom_id)
         }
 
         if not my_batch_ids:
@@ -229,7 +233,7 @@ class ClassroomService(BaseService):
         )
         
         filtered = []
-        for ca in res.data:
+        for ca in (res.data or []):
             ca_batch_ids = ca.get("batch_ids")
             # Logic: If batch_ids is null or empty, it's a global courtroom assignment
             # (or we can decide it's legacy).
@@ -257,7 +261,8 @@ class ClassroomService(BaseService):
         if not batch_res.data:
             raise NotFoundError("batches", batch_id)
 
-        if batch_res.data["classrooms"]["teacher_id"] != str(teacher_id):
+        classroom_rel = batch_res.data.get("classrooms")
+        if not classroom_rel or classroom_rel.get("teacher_id") != str(teacher_id):
             raise ForbiddenError("You do not own the classroom this batch belongs to")
 
         res = await (

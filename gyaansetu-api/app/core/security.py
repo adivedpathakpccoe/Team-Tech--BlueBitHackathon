@@ -42,16 +42,22 @@ async def get_user_from_token(token: str, db: AsyncClient):
 
     Uses an in-memory LRU cache with a 5-minute TTL so repeated requests
     with the same token don't each incur a Supabase network round-trip.
+    Retries once on transient errors to handle flaky network conditions.
     """
     cached = _cache_get(token)
     if cached is not None:
         return cached
 
-    try:
-        res = await db.auth.get_user(token)
-        user = res.user
-        if user is not None:
-            _cache_set(token, user)
-        return user
-    except Exception:
-        return None
+    last_err = None
+    for attempt in range(2):
+        try:
+            res = await db.auth.get_user(token)
+            user = res.user
+            if user is not None:
+                _cache_set(token, user)
+            return user
+        except Exception as exc:
+            last_err = exc
+            logger.warning("get_user_from_token attempt %d failed: %s", attempt + 1, exc)
+    logger.error("get_user_from_token failed after 2 attempts: %s", last_err)
+    return None

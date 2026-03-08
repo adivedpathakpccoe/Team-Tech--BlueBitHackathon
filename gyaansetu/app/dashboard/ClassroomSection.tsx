@@ -10,7 +10,7 @@ interface Classroom {
     id: string
     name: string
     description: string | null
-    owner_id: string
+    teacher_id: string
 }
 
 export default function ClassroomSection({ token, initialClassrooms }: { token: string; initialClassrooms?: Classroom[] }) {
