@@ -416,14 +416,34 @@
 }
 
 .classroomId {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
     font-family: var(--font-body);
     font-size: 0.72rem;
     letter-spacing: 0.15em;
     text-transform: uppercase;
-    color: var(--ink);
-    background: #e8f4f3;
+    color: var(--teal);
+    background: #eef2f1;
     border: 1px solid #b2d8d4;
-    padding: 0.2rem 0.55rem;
+    padding: 0.25rem 0.6rem;
+    cursor: copy;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.classroomId:hover {
+    background: var(--teal);
+    color: white;
+    border-color: var(--teal);
+}
+
+.copyIcon {
+    opacity: 0.5;
+    transition: opacity 0.2s;
+}
+
+.classroomId:hover .copyIcon {
+    opacity: 1;
 }
 
 .quickCards {

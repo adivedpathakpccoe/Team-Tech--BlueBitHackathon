@@ -21,6 +21,11 @@ export default function BatchSection({ classroomId, token }: { classroomId: stri
     const [isLoading, setIsLoading] = useState(true)
     const [isSubmitting, setIsSubmitting] = useState(false)
 
+    const copyToClipboard = (text: string, label: string) => {
+        navigator.clipboard.writeText(text)
+        toast.success(`${label} copied to clipboard`)
+    }
+
     useEffect(() => {
         fetchBatches()
     }, [classroomId, token])
@@ -84,11 +89,19 @@ export default function BatchSection({ classroomId, token }: { classroomId: stri
                                 {batch.description || 'No description provided.'}
                             </p>
                             <div className={styles.batchMeta}>
-                                <div className={styles.joinCode}>
-                                    <span>Join Code:</span>
-                                    <span className={styles.codeValue}>{batch.join_code}</span>
+                                <div
+                                    className={styles.joinCode}
+                                    onClick={() => copyToClipboard(batch.join_code, 'Join code')}
+                                    title="Click to copy join code"
+                                >
+                                    <span className={styles.joinLabel}>Join Code:</span>
+                                    <div className={styles.codeWrapper}>
+                                        <span className={styles.codeValue}>{batch.join_code}</span>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={styles.copyIcon}><rect width="14" height="14" x="8" y="8" rx="2" ry="2" /><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" /></svg>
+                                    </div>
                                 </div>
                                 <div className={styles.memberCount}>
+                                    <span className={styles.memberIndicator} />
                                     {batch.member_count ?? 0} Students Enrolled
                                 </div>
                             </div>

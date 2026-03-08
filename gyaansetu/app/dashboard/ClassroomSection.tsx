@@ -24,6 +24,11 @@ export default function ClassroomSection({ token }: { token: string }) {
     const [confirmDelete, setConfirmDelete] = useState<Classroom | null>(null)
     const router = useRouter()
 
+    const copyToClipboard = (text: string, label: string) => {
+        navigator.clipboard.writeText(text)
+        toast.success(`${label} copied to clipboard`)
+    }
+
     useEffect(() => {
         fetchClassrooms()
     }, [token])
@@ -106,7 +111,14 @@ export default function ClassroomSection({ token }: { token: string }) {
                                 <span className={`${styles.cardTag} ${styles.cardTagPrimary}`}>
                                     Classroom
                                 </span>
-                                <span className={styles.classroomId}>{cls.id.slice(0, 8).toUpperCase()}</span>
+                                <div
+                                    className={styles.classroomId}
+                                    onClick={(e) => { e.stopPropagation(); copyToClipboard(cls.id, 'Classroom ID') }}
+                                    title="Click to copy full ID"
+                                >
+                                    <span>{cls.id.slice(0, 8).toUpperCase()}</span>
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={styles.copyIcon}><rect width="14" height="14" x="8" y="8" rx="2" ry="2" /><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" /></svg>
+                                </div>
                             </div>
                             <div className={styles.cardTitle}>{cls.name}</div>
                             <p className={styles.cardDesc}>
