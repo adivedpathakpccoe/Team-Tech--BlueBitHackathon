@@ -1,0 +1,147 @@
+.plan {
+    position: relative;
+    padding: 2.5rem 2rem;
+    background: var(--cream);
+    transition: transform 0.2s;
+}
+
+.plan:hover {
+    transform: translateY(-3px);
+}
+
+.planFeatured {
+    background: var(--ink-soft);
+    border-top: 3px solid var(--red);
+}
+
+.ribbon {
+    position: absolute;
+    top: 0;
+    right: 0;
+    background: var(--red);
+    color: var(--cream);
+    font-family: var(--font-body);
+    font-size: 0.52rem;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    padding: 0.4rem 0.8rem;
+}
+
+.tier {
+    font-family: var(--font-body);
+    font-size: 0.55rem;
+    letter-spacing: 0.4em;
+    text-transform: uppercase;
+    color: var(--red);
+    margin-bottom: 0.8rem;
+}
+
+.name {
+    font-family: var(--font-serif);
+    font-style: italic;
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: var(--ink);
+    margin-bottom: 0.5rem;
+    line-height: 1.1;
+}
+
+.nameFeatured {
+    color: var(--cream);
+}
+
+.price {
+    font-family: var(--font-display);
+    font-size: 3.5rem;
+    font-weight: 700;
+    color: var(--ink);
+    line-height: 1;
+    margin-bottom: 0.3rem;
+}
+
+.priceFeatured {
+    color: var(--yellow);
+}
+
+.period {
+    font-family: var(--font-body);
+    font-size: 0.7rem;
+    color: rgba(8, 8, 6, 0.45);
+    margin-bottom: 1.8rem;
+    letter-spacing: 0.1em;
+}
+
+.periodFeatured {
+    color: var(--muted);
+}
+
+.divider {
+    height: 1px;
+    background: var(--border-dark);
+    margin-bottom: 1.5rem;
+}
+
+.dividerFeatured {
+    background: var(--border);
+}
+
+.features {
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+    margin-bottom: 2rem;
+}
+
+.feature {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.6rem;
+    font-family: var(--font-body);
+    font-size: 0.8rem;
+    color: rgba(8, 8, 6, 0.65);
+    line-height: 1.4;
+}
+
+.featureFeatured {
+    color: var(--muted);
+}
+
+.check {
+    color: var(--teal);
+    font-size: 0.8rem;
+    flex-shrink: 0;
+    margin-top: 0.05rem;
+}
+
+.btn {
+    width: 100%;
+    font-family: var(--font-display);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    padding: 0.9rem;
+    text-align: center;
+    display: block;
+    transition: background 0.2s, color 0.2s, transform 0.15s;
+    border: 1px solid rgba(8, 8, 6, 0.25);
+    color: var(--ink);
+    background: transparent;
+}
+
+.btn:hover {
+    background: var(--ink);
+    color: var(--cream);
+    transform: translateY(-1px);
+}
+
+.btnFeatured {
+    background: var(--cream);
+    color: var(--ink);
+    border: none;
+}
+
+.btnFeatured:hover {
+    background: var(--yellow);
+    color: var(--ink);
+}

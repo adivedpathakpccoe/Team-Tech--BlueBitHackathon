@@ -1,0 +1,39 @@
+.bar {
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    background: var(--red);
+    padding: 6px 4rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1.5rem;
+    overflow: hidden;
+}
+
+.text {
+    font-family: var(--font-body);
+    font-size: 0.6rem;
+    letter-spacing: 0.5em;
+    text-transform: uppercase;
+    color: var(--cream);
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 1.2rem;
+}
+
+.sep {
+    opacity: 0.4;
+    font-size: 0.5rem;
+}
+
+@media (max-width: 900px) {
+    .bar {
+        padding: 6px 1.5rem;
+    }
+
+    .text span:not(:first-child) {
+        display: none;
+    }
+}

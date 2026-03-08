@@ -1,0 +1,88 @@
+.nav {
+    position: relative;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.4rem 4rem;
+    border-bottom: 1px solid var(--border);
+    background: var(--ink);
+}
+
+.logo {
+    font-family: var(--font-display);
+    font-size: 1.35rem;
+    font-weight: 700;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--cream);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.logoDot {
+    width: 7px;
+    height: 7px;
+    background: var(--red);
+    display: inline-block;
+    animation: blink 1.2s step-end infinite;
+}
+
+.links {
+    display: flex;
+    align-items: center;
+    gap: 2.5rem;
+}
+
+.link {
+    font-family: var(--font-body);
+    font-size: 0.62rem;
+    letter-spacing: 0.35em;
+    text-transform: uppercase;
+    color: var(--muted);
+    transition: color 0.2s;
+}
+
+.link:hover {
+    color: var(--cream);
+}
+
+.cta {
+    font-family: var(--font-display);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    background: var(--red);
+    color: var(--cream);
+    padding: 0.65rem 1.4rem;
+    transition: background 0.2s, transform 0.15s;
+}
+
+.cta:hover {
+    background: var(--red-muted);
+    transform: translateY(-1px);
+}
+
+@media (max-width: 900px) {
+    .nav {
+        padding: 1.2rem 1.5rem;
+    }
+
+    .links {
+        display: none;
+    }
+}
+
+@keyframes blink {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0;
+    }
+}
