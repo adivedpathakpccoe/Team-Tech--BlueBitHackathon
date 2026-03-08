@@ -5,13 +5,17 @@
 
 const IS_SERVER = typeof window === 'undefined'
 
-// On the server (Server Components/Actions), we hit the backend directly via localhost for speed.
+// On the server (Server Components/Actions), we hit the backend directly.
+// Use API_BASE_URL env var if set (for custom deployments), else default to
+// 127.0.0.1 (NOT localhost — avoids IPv6 resolution delay on macOS/Node.js 17+).
 // On the client (useEffect/Event Handlers), we hit the /backend rewrite so Next.js proxies it for us.
-const BASE_URL = IS_SERVER ? 'http://localhost:8000' : '/backend'
+const BASE_URL = IS_SERVER
+    ? (process.env.API_BASE_URL ?? 'http://127.0.0.1:8000')
+    : '/backend'
 
 const EXTRACTOR_URL = IS_SERVER
-    ? (process.env.NEXT_PUBLIC_EXTRACTOR_URL ?? 'http://localhost:8001')
-    : '/extractor' // We should also add a rewrite for the extractor if needed.
+    ? (process.env.EXTRACTOR_BASE_URL ?? 'http://127.0.0.1:8001')
+    : '/extractor'
 
 // ─── Response types ──────────────────────────────────────────────────────────
 
@@ -74,7 +78,7 @@ async function apiFetch<T>(
     } catch (err: unknown) {
         console.error(`[API ERROR] ${options.method || 'GET'} ${path}:`, err)
         if (err instanceof Error && err.name === 'AbortError') {
-            throw new Error('Request timed out after 45s. The dev tunnel might be sluggish.')
+            throw new Error(`Request timed out. Please check the backend is running at ${BASE_URL}.`)
         }
         throw err
     } finally {
@@ -148,6 +152,7 @@ export interface Assignment {
     created_at?: string
     classroom_id?: string
     batch_ids?: string[]
+    submitted?: boolean
 }
 
 export interface AssignmentCreate {
@@ -288,6 +293,7 @@ export interface StudentAssignment {
     enable_behavioral?: boolean
     enable_socratic?: boolean
     created_at?: string
+    submitted?: boolean
 }
 
 export const studentApi = {
@@ -344,6 +350,8 @@ export const submissionsApi = {
 export interface SocraticChallenge {
     submission_id: string
     challenge: string
+    started_at: string
+    time_limit: number
 }
 
 export interface SocraticScoreResult {
@@ -351,6 +359,8 @@ export interface SocraticScoreResult {
     ownership_score: number
     analysis: string
     followup: string | null
+    followup_started_at: string | null
+    question_just_answered: number
 }
 
 export const socraticApi = {
@@ -366,6 +376,14 @@ export const socraticApi = {
             method: 'POST',
             body: JSON.stringify(payload),
         }, token, 60_000),
+
+    /** Record a paste violation during the Socratic challenge */
+    pasteViolation: (submission_id: string, token: string) =>
+        apiFetch<{ paste_violations: number; paste_penalty: number }>(
+            `/api/socratic/paste-violation?submission_id=${submission_id}`,
+            { method: 'POST' },
+            token,
+        ),
 }
 
 // ─── Extractor endpoints ──────────────────────────────────────────────────────
@@ -403,12 +421,16 @@ export interface ReactiveUploadResult {
     filename: string
     text_length: number
     challenge: string | null
+    started_at: string | null
+    time_limit: number
 }
 
 export interface ReactiveSocraticResult {
     socratic_score: number
     analysis: string
     followup: string | null
+    followup_started_at: string | null
+    question_just_answered: number
 }
 
 export interface ReactiveAnalysisResult {
@@ -465,6 +487,14 @@ export interface ReactiveSubmissionStatus {
         socratic_score: number | null
         analysis: string | null
         followup: string | null
+        followup_started_at: string | null
+        followup_response: string | null
+        followup2: string | null
+        followup2_started_at: string | null
+        followup2_response: string | null
+        paste_violations: number | null
+        started_at: string | null
+        time_limit: number | null
     } | null
     scores: {
         similarity_score: number

@@ -440,6 +440,18 @@ class AssignmentService(BaseService):
             data["difficulty"] = ca.get("difficulty")
             data["enable_behavioral"] = ca.get("enable_behavioral", True)
             data["enable_socratic"] = ca.get("enable_socratic", True)
+            data["mode"] = ca.get("mode", "proactive")
+            
+            # Check for existing submission & socratic session
+            sub_res = await self.db.table("submissions").select("*").eq("assignment_id", data["id"]).maybe_single().execute()
+            if sub_res.data:
+                data["submission"] = sub_res.data
+                soc_res = await self.db.table("socratic_sessions").select("*").eq("submission_id", sub_res.data["id"]).maybe_single().execute()
+                if soc_res.data:
+                    data["socratic"] = soc_res.data
+                scr_res = await self.db.table("scores").select("*").eq("submission_id", sub_res.data["id"]).maybe_single().execute()
+                if scr_res.data:
+                    data["scores"] = scr_res.data
             return data
 
         # No variant yet — auto-generate on first access

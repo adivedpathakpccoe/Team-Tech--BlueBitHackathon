@@ -26,28 +26,77 @@ interface BehaviorTracker {
 
 const SOCRATIC_TIME_LIMIT = 180 // 3 minutes in seconds
 
-function SocraticTimer({ onExpire, isActive }: { onExpire: () => void, isActive: boolean }) {
-    const [timeLeft, setTimeLeft] = useState(SOCRATIC_TIME_LIMIT)
+function SocraticTimer({
+    onExpire,
+    isActive,
+    startedAt,
+    timeLimit = 180
+}: {
+    onExpire: () => void,
+    isActive: boolean,
+    startedAt: string | null,
+    timeLimit?: number
+}) {
+    const [timeLeft, setTimeLeft] = useState(timeLimit)
     const timerRef = useRef<NodeJS.Timeout | null>(null)
+    const onExpireRef = useRef(onExpire)
+    const localStartRef = useRef<number | null>(null)
 
     useEffect(() => {
-        if (!isActive) return
+        onExpireRef.current = onExpire
+    }, [onExpire])
 
-        timerRef.current = setInterval(() => {
-            setTimeLeft(prev => {
-                if (prev <= 1) {
-                    if (timerRef.current) clearInterval(timerRef.current)
-                    onExpire()
-                    return 0
-                }
-                return prev - 1
-            })
-        }, 1000)
+    useEffect(() => {
+        if (!isActive) {
+            if (timerRef.current) clearInterval(timerRef.current)
+            setTimeLeft(timeLimit)
+            localStartRef.current = null
+            return
+        }
+
+        // Determine the anchor point for the countdown
+        let anchorTime: number;
+        if (startedAt) {
+            // Robust Date Parsing
+            let startStr = startedAt.replace(' ', 'T')
+            if (!startStr.includes('Z') && !startStr.includes('+')) {
+                startStr += 'Z'
+            }
+            const parsed = new Date(startStr).getTime()
+            if (isNaN(parsed)) {
+                console.error('Invalid startedAt, falling back to local start')
+                if (!localStartRef.current) localStartRef.current = Date.now()
+                anchorTime = localStartRef.current
+            } else {
+                anchorTime = parsed
+            }
+        } else {
+            // If no server time provided, use local once
+            if (!localStartRef.current) localStartRef.current = Date.now()
+            anchorTime = localStartRef.current
+        }
+
+        const runTick = () => {
+            const now = Date.now()
+            const elapsed = Math.floor((now - anchorTime) / 1000)
+            const remaining = Math.max(0, timeLimit - elapsed)
+
+            setTimeLeft(remaining)
+
+            if (remaining <= 0) {
+                if (timerRef.current) clearInterval(timerRef.current)
+                onExpireRef.current()
+            }
+        }
+
+        runTick()
+        if (timerRef.current) clearInterval(timerRef.current)
+        timerRef.current = setInterval(runTick, 1000)
 
         return () => {
             if (timerRef.current) clearInterval(timerRef.current)
         }
-    }, [isActive, onExpire])
+    }, [isActive, startedAt, timeLimit]) // Stable dependencies
 
     const formatTime = (seconds: number) => {
         const m = Math.floor(seconds / 60)
@@ -92,16 +141,21 @@ export default function AssignmentWorkspace({
     const [essay, setEssay] = useState('')
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [submission, setSubmission] = useState<SubmissionResult | null>(null)
-    const [challenge, setChallenge] = useState<string | null>(null)
+    // currentChallenge / currentStartedAt always reflect the ACTIVE question (Q1, Q2, or Q3)
+    const [currentChallenge, setCurrentChallenge] = useState<string | null>(null)
     const [isLoadingChallenge, setIsLoadingChallenge] = useState(false)
     const [socraticResponse, setSocraticResponse] = useState('')
     const [isScoringResponse, setIsScoringResponse] = useState(false)
     const [finalScore, setFinalScore] = useState<SocraticScoreResult | null>(null)
+    const [startedAt, setStartedAt] = useState<string | null>(null)
+    const [timeLimit, setTimeLimit] = useState<number>(180)
+    const [pasteViolations, setPasteViolations] = useState(0)
 
     // ── Reactive state ──────────────────────────────────────────────────────
     const [reactiveStatus, setReactiveStatus] = useState<ReactiveSubmissionStatus | null>(null)
     const [isUploading, setIsUploading] = useState(false)
-    const [reactiveChallenge, setReactiveChallenge] = useState<string | null>(null)
+    // currentReactiveChallenge / currentReactiveStartedAt always reflect the ACTIVE question
+    const [currentReactiveChallenge, setCurrentReactiveChallenge] = useState<string | null>(null)
     const [reactiveSubmissionId, setReactiveSubmissionId] = useState<string | null>(null)
     const [reactiveSocraticResponse, setReactiveSocraticResponse] = useState('')
     const [isScoringReactive, setIsScoringReactive] = useState(false)
@@ -110,6 +164,9 @@ export default function AssignmentWorkspace({
         analysis: string
         followup: string | null
     } | null>(null)
+    const [reactiveStartedAt, setReactiveStartedAt] = useState<string | null>(null)
+    const [reactiveTimeLimit, setReactiveTimeLimit] = useState<number>(180)
+    const [reactivePasteViolations, setReactivePasteViolations] = useState(0)
     const fileInputRef = useRef<HTMLInputElement>(null)
 
     // ── Behavior tracking (proactive only) ──────────────────────────────────
@@ -158,21 +215,65 @@ export default function AssignmentWorkspace({
                     if (statusRes.data) {
                         setReactiveStatus(statusRes.data)
                         setReactiveSubmissionId(statusRes.data.submission?.id || null)
-                        if (statusRes.data.socratic?.challenge && !statusRes.data.socratic?.student_response) {
-                            setReactiveChallenge(statusRes.data.socratic.challenge)
-                        }
-                        if (statusRes.data.socratic?.socratic_score != null && statusRes.data.socratic?.student_response) {
-                            setReactiveFinalScore({
-                                socratic_score: statusRes.data.socratic.socratic_score,
-                                analysis: statusRes.data.socratic.analysis || '',
-                                followup: statusRes.data.socratic.followup || null,
-                            })
+                        const soc = statusRes.data.socratic
+                        if (soc) {
+                            setReactiveTimeLimit(soc.time_limit || 180)
+                            setPasteViolations(soc.paste_violations || 0)
+
+                            // Determine which question is currently active (for timer + textarea)
+                            if (soc.followup2 && !soc.followup2_response) {
+                                // Q3 active
+                                setCurrentReactiveChallenge(soc.followup2)
+                                setReactiveStartedAt(soc.followup2_started_at)
+                            } else if (soc.followup && !soc.followup_response) {
+                                // Q2 active
+                                setCurrentReactiveChallenge(soc.followup)
+                                setReactiveStartedAt(soc.followup_started_at)
+                            } else if (!soc.student_response) {
+                                // Q1 active
+                                setCurrentReactiveChallenge(soc.challenge)
+                                setReactiveStartedAt(soc.started_at)
+                            } else {
+                                // All questions answered — session complete
+                                setReactiveFinalScore({
+                                    socratic_score: soc.socratic_score ?? 0,
+                                    analysis: soc.analysis || '',
+                                    followup: null,
+                                })
+                            }
                         }
                     }
                 } else {
-                    // Proactive — load the distributed variant (existing flow)
+                    // Proactive — load the distributed variant
                     const res = await studentApi.getMyAssignmentVariant(classroomAssignmentId, token)
-                    setAssignment(res.data ?? null)
+                    const data = res.data as any
+                    setAssignment(data ?? null)
+
+                    if (data?.submission) {
+                        setSubmission(data.submission)
+                        const soc = data.socratic
+                        if (soc) {
+                            setTimeLimit(soc.time_limit || 180)
+                            setPasteViolations(soc.paste_violations || 0)
+
+                            // Determine active question for timer + textarea
+                            if (soc.followup2 && !soc.followup2_response) {
+                                setCurrentChallenge(soc.followup2)
+                                setStartedAt(soc.followup2_started_at)
+                            } else if (soc.followup && !soc.followup_response) {
+                                setCurrentChallenge(soc.followup)
+                                setStartedAt(soc.followup_started_at)
+                            } else if (!soc.student_response) {
+                                setCurrentChallenge(soc.challenge)
+                                setStartedAt(soc.started_at)
+                            } else {
+                                // Session complete
+                                if (data.scores?.socratic_score != null) {
+                                    setFinalScore(data.scores)
+                                }
+                            }
+                        }
+                    }
                 }
             } catch (error) {
                 console.error('Failed to load assignment:', error)
@@ -249,7 +350,11 @@ export default function AssignmentWorkspace({
                 setIsLoadingChallenge(true)
                 try {
                     const cRes = await socraticApi.getChallenge(sub.id, token)
-                    if (cRes.data) setChallenge(cRes.data.challenge)
+                    if (cRes.data) {
+                        setCurrentChallenge(cRes.data.challenge)
+                        setStartedAt(cRes.data.started_at)
+                        setTimeLimit(cRes.data.time_limit || 180)
+                    }
                 } catch {
                     toast.error('Could not generate Socratic challenge')
                 } finally {
@@ -263,22 +368,34 @@ export default function AssignmentWorkspace({
         }
     }
 
-    const handleSocraticSubmit = async () => {
-        if (!submission || socraticResponse.trim().length < 20 || isScoringResponse) return
+    const handleSocraticSubmit = useCallback(async (isTimeout = false) => {
+        if (!submission || (socraticResponse.trim().length < 20 && !isTimeout) || isScoringResponse) return
 
         setIsScoringResponse(true)
         try {
             const res = await socraticApi.scoreResponse(
-                { submission_id: submission.id, student_response: socraticResponse },
+                { submission_id: submission.id, student_response: socraticResponse || "(No response - timed out)" },
                 token,
             )
-            if (res.data) setFinalScore(res.data)
+            if (res.data) {
+                if (res.data.followup) {
+                    // Another question — advance to next phase
+                    setCurrentChallenge(res.data.followup)
+                    setStartedAt(res.data.followup_started_at)
+                    setSocraticResponse('')
+                    toast.info('Good start — one more question to verify your understanding.')
+                } else {
+                    // All done
+                    setFinalScore(res.data)
+                    setCurrentChallenge(null)
+                }
+            }
         } catch (error) {
             toast.error(error instanceof Error ? error.message : 'Failed to score response')
         } finally {
             setIsScoringResponse(false)
         }
-    }
+    }, [submission, socraticResponse, isScoringResponse, token])
 
     // ── Reactive handlers ───────────────────────────────────────────────────
 
@@ -290,7 +407,9 @@ export default function AssignmentWorkspace({
             if (res.data) {
                 setReactiveSubmissionId(res.data.submission_id)
                 if (res.data.challenge) {
-                    setReactiveChallenge(res.data.challenge)
+                    setCurrentReactiveChallenge(res.data.challenge)
+                    setReactiveStartedAt(res.data.started_at)
+                    setReactiveTimeLimit(res.data.time_limit || 180)
                 }
                 toast.success(`File "${res.data.filename}" uploaded successfully!`)
             }
@@ -301,36 +420,63 @@ export default function AssignmentWorkspace({
         }
     }
 
-    const handleSocraticTimeout = () => {
-        if (reactiveFinalScore || finalScore) return
-        toast.error('Time expired! Auto-submitting response.')
-        if (assignmentMode === 'reactive') {
-            handleReactiveSocraticSubmit()
-        } else {
-            handleSocraticSubmit()
-        }
-    }
-
-    const handleReactiveSocraticSubmit = async () => {
-        if (!reactiveSubmissionId || reactiveSocraticResponse.trim().length < 20 || isScoringReactive) return
+    const handleReactiveSocraticSubmit = useCallback(async (isTimeout = false) => {
+        if (!reactiveSubmissionId || (reactiveSocraticResponse.trim().length < 20 && !isTimeout) || isScoringReactive) return
 
         setIsScoringReactive(true)
         try {
             const res = await reactiveApi.socraticAnswer(
                 reactiveSubmissionId,
-                reactiveSocraticResponse,
+                reactiveSocraticResponse || "(No response - timed out)",
                 token,
             )
             if (res.data) {
-                setReactiveFinalScore(res.data)
-                toast.success('Socratic response scored!')
+                if (res.data.followup) {
+                    // Another question — advance to next phase
+                    setCurrentReactiveChallenge(res.data.followup)
+                    setReactiveStartedAt(res.data.followup_started_at)
+                    setReactiveSocraticResponse('')
+                    toast.info('Good start — one more question to verify your understanding.')
+                } else {
+                    setReactiveFinalScore(res.data)
+                    setCurrentReactiveChallenge(null)
+                    toast.success('Socratic response scored!')
+                }
             }
         } catch (error) {
             toast.error(error instanceof Error ? error.message : 'Failed to score response')
         } finally {
             setIsScoringReactive(false)
         }
-    }
+    }, [reactiveSubmissionId, reactiveSocraticResponse, isScoringReactive, token])
+
+    const handleSocraticTimeout = useCallback(() => {
+        if (reactiveFinalScore || finalScore) return
+        toast.error('Time expired! Auto-submitting response.')
+        if (assignmentMode === 'reactive') {
+            handleReactiveSocraticSubmit(true)
+        } else {
+            handleSocraticSubmit(true)
+        }
+    }, [reactiveFinalScore, finalScore, assignmentMode, handleReactiveSocraticSubmit, handleSocraticSubmit])
+
+    const handleSocraticPaste = useCallback((e: React.ClipboardEvent<HTMLTextAreaElement>, submissionId: string | null) => {
+        e.preventDefault()
+        setPasteViolations(v => v + 1)
+        toast.warning('Paste is not allowed during the Socratic challenge. This attempt has been recorded and will affect your score.')
+        if (submissionId) {
+            socraticApi.pasteViolation(submissionId, token).catch(() => { /* non-critical */ })
+        }
+    }, [token])
+
+    const handleReactivePaste = useCallback((e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+        e.preventDefault()
+        setReactivePasteViolations(v => v + 1)
+        toast.warning('Paste is not allowed during the Socratic challenge. This attempt has been recorded and will affect your score.')
+        if (reactiveSubmissionId) {
+            socraticApi.pasteViolation(reactiveSubmissionId, token).catch(() => { /* non-critical */ })
+        }
+    }, [reactiveSubmissionId, token])
 
     const wordCount = essay.trim() ? essay.trim().split(/\s+/).length : 0
 
@@ -351,8 +497,8 @@ export default function AssignmentWorkspace({
 
     if (assignmentMode === 'reactive') {
         const hasSubmitted = !!reactiveSubmissionId || !!reactiveStatus?.submission
-        const hasSocraticChallenge = !!reactiveChallenge || !!reactiveStatus?.socratic?.challenge
-        const hasAnsweredSocratic = !!reactiveFinalScore || !!reactiveStatus?.socratic?.student_response
+        const hasSocraticChallenge = !!currentReactiveChallenge
+        const hasAnsweredSocratic = !!reactiveFinalScore
 
         return (
             <div className={styles.workspace}>
@@ -471,18 +617,23 @@ export default function AssignmentWorkspace({
                                         <SocraticTimer
                                             isActive={!hasAnsweredSocratic && !isScoringReactive}
                                             onExpire={handleSocraticTimeout}
+                                            startedAt={reactiveStartedAt ?? null}
+                                            timeLimit={reactiveTimeLimit}
                                         />
                                     </div>
                                     <h2 className={styles.socraticTitle}>Viva Voce Verification</h2>
                                     <p className={styles.socraticSubtitle}>
                                         Answer the question below to verify you actually wrote the content you just submitted.
+                                        {reactivePasteViolations > 0 && (
+                                            <span style={{ color: '#dc2626', marginLeft: '0.5rem' }}>
+                                                ⚠ {reactivePasteViolations} paste attempt{reactivePasteViolations > 1 ? 's' : ''} recorded (−{Math.min(reactivePasteViolations * 5, 20)} pts)
+                                            </span>
+                                        )}
                                     </p>
                                 </div>
 
                                 <div className={styles.challengeBox}>
-                                    <p className={styles.challengeText}>
-                                        {reactiveChallenge || reactiveStatus?.socratic?.challenge}
-                                    </p>
+                                    <p className={styles.challengeText}>{currentReactiveChallenge}</p>
                                 </div>
 
                                 <div className={styles.editorHeader}>
@@ -495,6 +646,7 @@ export default function AssignmentWorkspace({
                                     className={styles.editor}
                                     value={reactiveSocraticResponse}
                                     onChange={(e) => setReactiveSocraticResponse(e.target.value)}
+                                    onPaste={handleReactivePaste}
                                     placeholder="Respond to the challenge in your own words…"
                                     rows={8}
                                     disabled={isScoringReactive}
@@ -503,7 +655,7 @@ export default function AssignmentWorkspace({
                                     <span />
                                     <button
                                         className={styles.submitBtn}
-                                        onClick={handleReactiveSocraticSubmit}
+                                        onClick={() => handleReactiveSocraticSubmit(false)}
                                         disabled={isScoringReactive || reactiveSocraticResponse.trim().length < 20}
                                     >
                                         {isScoringReactive ? 'Evaluating…' : 'Submit Answer'}
@@ -574,14 +726,6 @@ export default function AssignmentWorkspace({
                                         </div>
                                     )}
 
-                                    {(reactiveFinalScore?.followup || reactiveStatus?.socratic?.followup) && (
-                                        <div className={styles.followupBox}>
-                                            <span className={styles.followupLabel}>Follow-up Question</span>
-                                            <p className={styles.followupText}>
-                                                {reactiveFinalScore?.followup || reactiveStatus?.socratic?.followup}
-                                            </p>
-                                        </div>
-                                    )}
                                 </div>
                             </div>
                         )}
@@ -740,13 +884,20 @@ export default function AssignmentWorkspace({
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                                     <span className={styles.socraticTag}>Socrates Engine</span>
                                     <SocraticTimer
-                                        isActive={!!challenge && !finalScore && !isScoringResponse}
+                                        isActive={!!currentChallenge && !finalScore && !isScoringResponse}
                                         onExpire={handleSocraticTimeout}
+                                        startedAt={startedAt ?? null}
+                                        timeLimit={timeLimit ?? 180}
                                     />
                                 </div>
                                 <h2 className={styles.socraticTitle}>Viva Voce Verification</h2>
                                 <p className={styles.socraticSubtitle}>
                                     Answer the question below to verify you understand what you wrote.
+                                    {pasteViolations > 0 && (
+                                        <span style={{ color: '#dc2626', marginLeft: '0.5rem' }}>
+                                            ⚠ {pasteViolations} paste attempt{pasteViolations > 1 ? 's' : ''} recorded (−{Math.min(pasteViolations * 5, 20)} pts)
+                                        </span>
+                                    )}
                                 </p>
                             </div>
 
@@ -757,10 +908,10 @@ export default function AssignmentWorkspace({
                                 </div>
                             )}
 
-                            {challenge && !finalScore && (
+                            {currentChallenge && !finalScore && (
                                 <>
                                     <div className={styles.challengeBox}>
-                                        <p className={styles.challengeText}>{challenge}</p>
+                                        <p className={styles.challengeText}>{currentChallenge}</p>
                                     </div>
                                     <div className={styles.editorHeader}>
                                         <span className={styles.editorLabel}>Your Answer</span>
@@ -772,6 +923,7 @@ export default function AssignmentWorkspace({
                                         className={styles.editor}
                                         value={socraticResponse}
                                         onChange={(e) => setSocraticResponse(e.target.value)}
+                                        onPaste={(e) => handleSocraticPaste(e, submission?.id ?? null)}
                                         placeholder="Respond to the challenge in your own words…"
                                         rows={8}
                                         disabled={isScoringResponse}
@@ -780,7 +932,7 @@ export default function AssignmentWorkspace({
                                         <span />
                                         <button
                                             className={styles.submitBtn}
-                                            onClick={handleSocraticSubmit}
+                                            onClick={() => handleSocraticSubmit(false)}
                                             disabled={isScoringResponse || socraticResponse.trim().length < 20}
                                         >
                                             {isScoringResponse ? 'Evaluating…' : 'Submit Answer'}
@@ -800,12 +952,6 @@ export default function AssignmentWorkspace({
                                         <span className={styles.scoreRowValue}>{finalScore.ownership_score.toFixed(1)}</span>
                                     </div>
                                     <p className={styles.analysisText}>{finalScore.analysis}</p>
-                                    {finalScore.followup && (
-                                        <div className={styles.followupBox}>
-                                            <span className={styles.followupLabel}>Follow-up Question</span>
-                                            <p className={styles.followupText}>{finalScore.followup}</p>
-                                        </div>
-                                    )}
                                 </div>
                             )}
                         </div>

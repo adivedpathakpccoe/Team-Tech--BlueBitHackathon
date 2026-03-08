@@ -275,13 +275,21 @@ export default function StudentSection({ token, initialBatches }: { token: strin
                                                                             {a.difficulty}
                                                                         </span>
                                                                         <span className={styles.modeBadge} style={{ color: '#1a8c82', background: '#e8f4f3' }}>
-                                                                            Open →
+                                                                            {a.submitted ? 'Review Details →' : 'Open →'}
                                                                         </span>
                                                                     </>
                                                                 )}
                                                                 <span className={`${styles.modeBadge} ${a.mode === 'reactive' ? styles.modeBadgeReactive : ''}`}>
                                                                     {a.mode}
                                                                 </span>
+                                                                {a.submitted && (
+                                                                    <span className={styles.submittedTick} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', color: '#10b981', fontWeight: 600 }}>
+                                                                        <svg viewBox="0 0 20 20" fill="currentColor" style={{ width: '14px', height: '14px' }}>
+                                                                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                                                        </svg>
+                                                                        Submitted
+                                                                    </span>
+                                                                )}
                                                             </div>
                                                         </div>
 
@@ -293,23 +301,47 @@ export default function StudentSection({ token, initialBatches }: { token: strin
 
                                                         {a.mode === 'reactive' && (
                                                             <div className={styles.assignmentActions} onClick={(e) => e.stopPropagation()}>
-                                                                <button
-                                                                    className={styles.uploadBtn}
-                                                                    onClick={() => triggerFileInput(a.id)}
-                                                                    disabled={extractingId === a.id}
-                                                                >
-                                                                    {extractingId === a.id ? (
-                                                                        <>
-                                                                            <span className={styles.spinnerIcon} /> Processing...
-                                                                        </>
-                                                                    ) : (
-                                                                        <>
-                                                                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" x2="12" y1="3" y2="15" /></svg>
-                                                                            Upload Submission
-                                                                        </>
-                                                                    )}
-                                                                </button>
-                                                                <span className={styles.uploadHint}>Supporting PDF, DOCX, PPTX, etc.</span>
+                                                                {a.submitted ? (
+                                                                    <button
+                                                                        className={styles.viewWorkspaceBtn}
+                                                                        onClick={() => router.push(`/dashboard/assignment/${a.id}`)}
+                                                                        style={{
+                                                                            display: 'flex',
+                                                                            alignItems: 'center',
+                                                                            gap: '6px',
+                                                                            padding: '0.4rem 0.8rem',
+                                                                            fontSize: '0.75rem',
+                                                                            fontWeight: 600,
+                                                                            textTransform: 'uppercase',
+                                                                            letterSpacing: '0.05em',
+                                                                            background: 'white',
+                                                                            border: '1px solid #e5e7eb',
+                                                                            borderRadius: '6px',
+                                                                            color: '#374151',
+                                                                            cursor: 'pointer'
+                                                                        }}
+                                                                    >
+                                                                        View Submission
+                                                                    </button>
+                                                                ) : (
+                                                                    <button
+                                                                        className={styles.uploadBtn}
+                                                                        onClick={() => triggerFileInput(a.id)}
+                                                                        disabled={extractingId === a.id}
+                                                                    >
+                                                                        {extractingId === a.id ? (
+                                                                            <>
+                                                                                <span className={styles.spinnerIcon} /> Processing...
+                                                                            </>
+                                                                        ) : (
+                                                                            <>
+                                                                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" x2="12" y1="3" y2="15" /></svg>
+                                                                                Upload Submission
+                                                                            </>
+                                                                        )}
+                                                                    </button>
+                                                                )}
+                                                                {!a.submitted && <span className={styles.uploadHint}>Supporting PDF, DOCX, PPTX, etc.</span>}
                                                             </div>
                                                         )}
                                                     </div>

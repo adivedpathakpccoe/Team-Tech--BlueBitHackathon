@@ -228,18 +228,32 @@ class ClassroomService(BaseService):
             .execute()
         )
         
+        # 3. Check for submissions by this student
+        # We need to check both public.submissions (proactive) and public.reactive_submissions (reactive)
+        pro_subs_res = await (
+            self.db.table("submissions")
+            .select("assignment_id, assignments!inner(classroom_assignment_id)")
+            .eq("student_id", str(student_id))
+            .execute()
+        )
+        submitted_ca_ids = {s["assignments"]["classroom_assignment_id"] for s in pro_subs_res.data}
+
+        react_subs_res = await (
+            self.db.table("reactive_submissions")
+            .select("classroom_assignment_id")
+            .eq("student_id", str(student_id))
+            .execute()
+        )
+        for s in react_subs_res.data:
+            submitted_ca_ids.add(s["classroom_assignment_id"])
+
         filtered = []
         for ca in res.data:
+            ca["submitted"] = ca["id"] in submitted_ca_ids
             ca_batch_ids = ca.get("batch_ids")
-            # Logic: If batch_ids is null or empty, it's a global courtroom assignment
-            # (or we can decide it's legacy).
-            # The user says "let the teacher select which batches to send the assignment to".
-            # So we only show if my_batch_ids overlaps with ca_batch_ids.
             if not ca_batch_ids:
-                # If no specific batches are set, we treat it as visible to all (fallback)
                 filtered.append(ca)
             else:
-                # Check if student is in any of the allowed batches
                 if any(bid in my_batch_ids for bid in ca_batch_ids):
                     filtered.append(ca)
 

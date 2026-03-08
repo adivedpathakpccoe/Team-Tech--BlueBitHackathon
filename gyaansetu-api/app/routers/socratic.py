@@ -24,7 +24,12 @@ async def get_challenge(submission_id: UUID, _: CurrentUserDep, svc: SocraticSer
     sub_res = await db.table("submissions").select("essay_text").eq("id", str(submission_id)).maybe_single().execute()
     essay_text = sub_res.data["essay_text"] if sub_res.data else ""
     result = await svc.generate_challenge(submission_id, essay_text)
-    return ok(data={"submission_id": submission_id, "challenge": result["challenge"]})
+    return ok(data={
+        "submission_id": submission_id,
+        "challenge": result["challenge"],
+        "started_at": result["started_at"],
+        "time_limit": result.get("time_limit", 180)
+    })
 
 
 @router.post("/score", response_model=dict)
@@ -51,4 +56,16 @@ async def score_response(body: SocraticScoreCreate, _: CurrentUserDep, svc: Socr
         "ownership_score": ownership_score,
         "analysis": session["analysis"],
         "followup": session.get("followup"),
+        "followup_started_at": session.get("followup_started_at"),
+        "question_just_answered": session.get("question_just_answered", 1),
+    })
+
+
+@router.post("/paste-violation", response_model=dict)
+async def record_paste_violation(submission_id: UUID, _: CurrentUserDep, svc: SocraticServiceDep):
+    """Record a paste attempt during the Socratic challenge and apply a score penalty."""
+    result = await svc.record_paste_violation(submission_id)
+    return ok(data={
+        "paste_violations": result["paste_violations"],
+        "paste_penalty": result["paste_penalty"],
     })

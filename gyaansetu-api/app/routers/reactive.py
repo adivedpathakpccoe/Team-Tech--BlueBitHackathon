@@ -95,7 +95,12 @@ async def get_my_reactive_submission(
     try:
         socratic_res = await (
             db.table("socratic_sessions")
-            .select("challenge, student_response, socratic_score, analysis, followup")
+            .select(
+                "challenge, student_response, socratic_score, analysis, "
+                "followup, followup_started_at, followup_response, "
+                "followup2, followup2_started_at, followup2_response, "
+                "paste_violations, started_at, time_limit"
+            )
             .eq("submission_id", sub_id)
             .execute()
         )
@@ -197,6 +202,8 @@ async def reactive_upload(
             "filename": file.filename,
             "text_length": len(extracted_text),
             "challenge": challenge,
+            "started_at": session.get("started_at") if challenge else None,
+            "time_limit": session.get("time_limit", 180) if challenge else 180,
         },
         message="File uploaded and processed",
     )
@@ -247,6 +254,8 @@ async def reactive_socratic_answer(
         "socratic_score": socratic_score,
         "analysis": session["analysis"],
         "followup": session.get("followup"),
+        "followup_started_at": session.get("followup_started_at"),
+        "question_just_answered": session.get("question_just_answered", 1),
     })
 
 
