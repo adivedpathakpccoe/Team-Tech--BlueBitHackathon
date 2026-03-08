@@ -4,6 +4,8 @@
     overflow: hidden;
     background: var(--ink);
     transition: background 0.2s;
+    height: 100%;
+    box-sizing: border-box;
 }
 
 .step:hover {
