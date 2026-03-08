@@ -410,23 +410,67 @@ class AssignmentService(BaseService):
         return res.data
 
     async def get_student_variant(self, student_id: UUID, classroom_assignment_id: UUID) -> dict | None:
-        """Fetch a student's specific variant for a classroom assignment, with template metadata."""
+        """Fetch a student's specific variant for a classroom assignment, auto-generating on first access."""
         res = await (
             self.db.table("assignments")
-            .select("*, classroom_assignments(topic, difficulty, enable_behavioral, enable_socratic)")
+            .select("*")
             .eq("student_id", str(student_id))
             .eq("classroom_assignment_id", str(classroom_assignment_id))
             .order("created_at", desc=True)
             .limit(1)
-            .maybe_single()
             .execute()
         )
-        if not res.data:
+        if res.data:
+            # Fetch template metadata to attach topic/difficulty/flags
+            ca_res = await (
+                self.db.table("classroom_assignments")
+                .select("topic, difficulty, enable_behavioral, enable_socratic")
+                .eq("id", str(classroom_assignment_id))
+                .limit(1)
+                .execute()
+            )
+            ca = (ca_res.data[0] if ca_res.data else {})
+            data = res.data[0]
+            data["topic"] = ca.get("topic")
+            data["difficulty"] = ca.get("difficulty")
+            data["enable_behavioral"] = ca.get("enable_behavioral", True)
+            data["enable_socratic"] = ca.get("enable_socratic", True)
+            return data
+
+        # No variant yet — auto-generate on first access
+        ca_res = await (
+            self.db.table("classroom_assignments")
+            .select("*")
+            .eq("id", str(classroom_assignment_id))
+            .limit(1)
+            .execute()
+        )
+        if not ca_res.data:
             return None
-        data = res.data
-        ca = data.pop("classroom_assignments", {}) or {}
-        data["topic"] = ca.get("topic")
-        data["difficulty"] = ca.get("difficulty")
-        data["enable_behavioral"] = ca.get("enable_behavioral", True)
-        data["enable_socratic"] = ca.get("enable_socratic", True)
-        return data
+        ca = ca_res.data[0]
+
+        parsed = await _call_gemini_variant(ca["topic"], ca["difficulty"])
+
+        record: dict = {
+            "classroom_assignment_id": str(classroom_assignment_id),
+            "student_id": str(student_id),
+            "assignment_text": parsed["assignment_text"],
+            "honeypot_phrase": parsed["honeypot_phrase"] if ca["honeypot_hidden_instruction"] else None,
+            "expected_interpretations": parsed["expected_interpretations"],
+            "mode": ca["mode"],
+        }
+
+        if ca["mode"] == "proactive":
+            record["hidden_trigger_phrase"] = parsed["hidden_trigger_phrase"]
+            if ca["honeypot_zero_width"]:
+                record["zero_width_encoded_id"] = _encode_zero_width(str(student_id))
+            if ca["honeypot_fake_fact"]:
+                record["wrong_fact_signal"] = parsed["wrong_fact_signal"]
+
+        insert_res = await self.db.table("assignments").insert(record).execute()
+        new_row = insert_res.data[0]
+        new_row["topic"] = ca.get("topic")
+        new_row["difficulty"] = ca.get("difficulty")
+        new_row["enable_behavioral"] = ca.get("enable_behavioral", True)
+        new_row["enable_socratic"] = ca.get("enable_socratic", True)
+        return new_row

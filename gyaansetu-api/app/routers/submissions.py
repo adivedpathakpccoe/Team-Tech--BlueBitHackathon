@@ -30,7 +30,7 @@ async def create_submission(body: SubmissionCreate, current_user: CurrentUserDep
     assignment_res = await db.table("assignments").select("honeypot_phrase, expected_interpretations").eq("id", str(body.assignment_id)).maybe_single().execute()
     honeypot_score = None
     if assignment_res.data:
-        honeypot_score = compute_honeypot_score(
+        honeypot_score = await compute_honeypot_score(
             body.essay_text,
             assignment_res.data["honeypot_phrase"],
             assignment_res.data["expected_interpretations"],

@@ -175,7 +175,7 @@ export default function AssignmentWorkspace({
         return (
             <div className={styles.stateBox}>
                 <div className={styles.spinner} />
-                <p className={styles.stateText}>Loading assignment…</p>
+                <p className={styles.stateText}>Preparing your assignment… this may take a moment.</p>
             </div>
         )
     }
