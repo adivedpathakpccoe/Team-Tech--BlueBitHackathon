@@ -3,10 +3,20 @@
 # run-all.sh
 # Bootstraps dependencies and starts both frontend and backend services
 # Usage: ./run-all.sh
-# This script assumes you have a Python virtualenv already activated
-# and Node.js installed.
+# The script will try to activate a venv at .venv if present; otherwise
+# it just uses whatever "python" is on PATH.
+# Node.js must be installed and available as "npm".
 
 set -e
+
+# activate python virtualenv if available
+if [ -f ".venv/bin/activate" ]; then
+    # shellcheck disable=SC1091
+    source .venv/bin/activate
+    echo "(venv) activated .venv"
+else
+    echo "warning: .venv not found, using system python"
+fi
 
 # ---------- backend ----------
 echo "\n[backend] installing python dependencies..."
