@@ -118,7 +118,7 @@ export default function AssignmentWorkspace({
                         if (statusRes.data.socratic?.challenge && !statusRes.data.socratic?.student_response) {
                             setReactiveChallenge(statusRes.data.socratic.challenge)
                         }
-                        if (statusRes.data.socratic?.socratic_score != null) {
+                        if (statusRes.data.socratic?.socratic_score != null && statusRes.data.socratic?.student_response) {
                             setReactiveFinalScore({
                                 socratic_score: statusRes.data.socratic.socratic_score,
                                 analysis: statusRes.data.socratic.analysis || '',

@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
 import { logout } from '@/app/auth/actions'
-import { authApi, type AuthUser } from '@/lib/api'
+import { authApi, classroomsApi, studentApi, type AuthUser } from '@/lib/api'
 import styles from './dashboard.module.css'
 import ClassroomSection from './ClassroomSection'
 import StudentSection from './StudentSection'
@@ -14,19 +14,36 @@ export default async function DashboardPage() {
         redirect('/auth/login')
     }
 
-    let user: AuthUser | null = null
+    // Fast JWT decode to determine role before hitting the DB
+    let role = 'student'
     try {
-        const res = await authApi.me(token)
-        user = res.data ?? null
-    } catch {
-        // Token is invalid / expired → go through route handler to clear cookies
-        // (direct redirect keeps the cookie, causing a middleware loop)
+        const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString())
+        role = payload.user_metadata?.role ?? 'student'
+    } catch { }
+    const isTeacher = role === 'teacher'
+
+    let user: AuthUser | null = null
+    let initialData: any = null
+
+    try {
+        // Fetch user and initial section data in parallel for speed
+        const [userRes, dataRes] = await Promise.all([
+            authApi.me(token).catch(() => ({ data: null })),
+            isTeacher
+                ? classroomsApi.list(token).catch(() => ({ data: [] }))
+                : studentApi.getMyBatches(token).catch(() => ({ data: [] }))
+        ])
+
+        user = userRes.data as AuthUser ?? null
+        initialData = dataRes.data ?? []
+
+        if (!user) throw new Error('Unauthorized')
+    } catch (err) {
+        console.error('[DASHBOARD ERROR]', err)
         redirect('/auth/signout')
     }
 
     const name = user?.name ?? user?.email?.split('@')[0] ?? 'Agent'
-    const role = user?.role ?? 'student'
-    const isTeacher = role === 'teacher'
 
     const quickCards = isTeacher
         ? [
@@ -73,9 +90,9 @@ export default async function DashboardPage() {
                 </p>
 
                 {isTeacher ? (
-                    <ClassroomSection token={token} />
+                    <ClassroomSection token={token} initialClassrooms={initialData} />
                 ) : (
-                    <StudentSection token={token} />
+                    <StudentSection token={token} initialBatches={initialData} />
                 )}
 
                 <div className={`${styles.cards} ${styles.quickCards}`}>

@@ -13,12 +13,12 @@ interface Classroom {
     owner_id: string
 }
 
-export default function ClassroomSection({ token }: { token: string }) {
-    const [classrooms, setClassrooms] = useState<Classroom[]>([])
+export default function ClassroomSection({ token, initialClassrooms }: { token: string; initialClassrooms?: Classroom[] }) {
+    const [classrooms, setClassrooms] = useState<Classroom[]>(initialClassrooms ?? [])
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [name, setName] = useState('')
     const [description, setDescription] = useState('')
-    const [isLoading, setIsLoading] = useState(true)
+    const [isLoading, setIsLoading] = useState(!initialClassrooms)
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [deletingId, setDeletingId] = useState<string | null>(null)
     const [confirmDelete, setConfirmDelete] = useState<Classroom | null>(null)
@@ -30,8 +30,12 @@ export default function ClassroomSection({ token }: { token: string }) {
     }
 
     useEffect(() => {
-        fetchClassrooms()
-    }, [token])
+        if (!initialClassrooms || initialClassrooms.length === 0) {
+            fetchClassrooms()
+        } else {
+            setIsLoading(false)
+        }
+    }, [token, initialClassrooms])
 
     const fetchClassrooms = async () => {
         try {

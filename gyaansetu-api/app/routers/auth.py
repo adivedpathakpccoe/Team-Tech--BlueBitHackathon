@@ -1,4 +1,5 @@
 from fastapi import APIRouter, HTTPException
+import logging
 from pydantic import BaseModel, EmailStr
 from typing import Annotated
 from fastapi import Depends
@@ -7,6 +8,8 @@ from supabase_auth.errors import AuthApiError
 from app.database import get_auth_db, get_db
 from app.core.deps import CurrentUserDep
 from app.core.responses import ok
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 

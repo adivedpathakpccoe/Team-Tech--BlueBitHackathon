@@ -5,11 +5,9 @@
 
 const IS_SERVER = typeof window === 'undefined'
 
-// On the server (Server Components/Actions), we hit the backend directly via localhost or env var.
+// On the server (Server Components/Actions), we hit the backend directly via localhost for speed.
 // On the client (useEffect/Event Handlers), we hit the /backend rewrite so Next.js proxies it for us.
-const BASE_URL = IS_SERVER
-    ? (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000')
-    : '/backend'
+const BASE_URL = IS_SERVER ? 'http://localhost:8000' : '/backend'
 
 const EXTRACTOR_URL = IS_SERVER
     ? (process.env.NEXT_PUBLIC_EXTRACTOR_URL ?? 'http://localhost:8001')

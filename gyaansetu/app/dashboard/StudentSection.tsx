@@ -24,10 +24,17 @@ const difficultyStyle: Record<string, string> = {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export default function StudentSection({ token }: { token: string }) {
+export default function StudentSection({ token, initialBatches }: { token: string; initialBatches?: EnrolledBatch[] }) {
     const router = useRouter()
-    const [batches, setBatches] = useState<BatchWithAssignments[]>([])
-    const [isLoading, setIsLoading] = useState(true)
+    const [batches, setBatches] = useState<BatchWithAssignments[]>(() => {
+        if (!initialBatches) return []
+        return initialBatches.map(b => ({
+            ...b,
+            assignments: [],
+            loadingAssignments: false,
+        }))
+    })
+    const [isLoading, setIsLoading] = useState(!initialBatches)
     const [joinCode, setJoinCode] = useState('')
     const [isJoinModalOpen, setIsJoinModalOpen] = useState(false)
     const [isJoining, setIsJoining] = useState(false)
@@ -60,8 +67,12 @@ export default function StudentSection({ token }: { token: string }) {
     }, [token])
 
     useEffect(() => {
-        fetchMyBatches()
-    }, [fetchMyBatches])
+        if (!initialBatches || initialBatches.length === 0) {
+            fetchMyBatches()
+        } else {
+            setIsLoading(false)
+        }
+    }, [fetchMyBatches, initialBatches])
 
     // ── Fetch assignments for a batch when expanded ─────────────────────────
 
