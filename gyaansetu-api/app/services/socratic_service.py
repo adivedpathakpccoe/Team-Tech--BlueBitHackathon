@@ -11,7 +11,7 @@ genai.configure(api_key=settings.gemini_api_key)
 _model = genai.GenerativeModel("gemini-1.5-flash")
 
 _CHALLENGE_PROMPT = """
-You are an academic integrity examiner. Read the following student essay and generate ONE probing challenge question that tests whether the student truly understands what they wrote.
+You are an academic integrity examiner. Read the following student essay and generate ONE broad, open-ended question that tests whether the student genuinely understands the overall argument and key ideas of what they wrote. The question should require the student to explain their reasoning or evidence in their own words — not just recite facts.
 
 Essay:
 {essay}
@@ -38,17 +38,28 @@ Score the response on:
 - specificity (concrete details, not vague generalities)
 - counterargument engagement (acknowledges complexity)
 
+Follow-up rules:
+- If socratic_score >= 60, set followup to null. The student has demonstrated sufficient understanding.
+- Only generate a followup if socratic_score < 60 AND there is a meaningfully different aspect of the WHOLE essay that remains unprobed.
+- The follow-up must probe a different part of the essay than the current question — do not ask about the same point.
 {final_note}
 
 Return ONLY valid JSON:
 {{
   "socratic_score": <float 0-100>,
   "analysis": "One sentence explanation of the score",
-  "followup": "A follow-up question if the response was weak or vague, or null if the response was strong"
+  "followup": null
+}}
+
+If a follow-up IS warranted (score < 60, not the final question), use:
+{{
+  "socratic_score": <float 0-100>,
+  "analysis": "One sentence explanation of the score",
+  "followup": "A probing question about a DIFFERENT part of the essay"
 }}
 """
 
-_FINAL_NOTE = "IMPORTANT: This is the FINAL question. You MUST return null for followup — do not generate another question."
+_FINAL_NOTE = "IMPORTANT: This is the FINAL question. You MUST return null for followup regardless of the score."
 _INTERIM_NOTE = ""
 
 
