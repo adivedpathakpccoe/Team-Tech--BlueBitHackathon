@@ -11,7 +11,7 @@ from app.models.assignment import AssignmentCreate
 from app.core.exceptions import ExternalServiceError, NotFoundError
 
 genai.configure(api_key=settings.gemini_api_key)
-_model = genai.GenerativeModel("gemini-1.5-flash")
+_model = genai.GenerativeModel("gemini-2.5-flash")
 logger = logging.getLogger(__name__)
 
 # Zero-width character encoding: 0 → ZWSP, 1 → ZWNJ

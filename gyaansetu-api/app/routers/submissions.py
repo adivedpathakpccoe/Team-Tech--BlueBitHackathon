@@ -62,16 +62,29 @@ async def list_assignment_submissions(
     # In a real app, verify current_user is the owner of the classroom
     # For now, we fetch all submissions for this assignment with student info
     res = await db.table("submissions") \
-        .select("*, profiles:student_id(full_name)") \
+        .select("*") \
         .eq("assignment_id", str(assignment_id)) \
-        .order("submitted_at", desc=True) \
+        .order("created_at", desc=True) \
         .execute()
-    
-    # Also fetch scores for each submission
+
     submissions = res.data or []
+
+    # Collect unique student IDs and fetch their profiles in one query
+    student_ids = list({sub["student_id"] for sub in submissions if sub.get("student_id")})
+    profiles_map: dict = {}
+    if student_ids:
+        profiles_res = await db.table("profiles") \
+            .select("id, full_name") \
+            .in_("id", student_ids) \
+            .execute()
+        profiles_map = {p["id"]: p for p in (profiles_res.data or [])}
+
+    # Also fetch scores for each submission
     for sub in submissions:
         score_res = await db.table("scores").select("*").eq("submission_id", sub["id"]).maybe_single().execute()
         sub["scores"] = score_res.data if score_res.data else {}
+        profile = profiles_map.get(sub.get("student_id"), {})
+        sub["profiles"] = {"full_name": profile.get("full_name")} if profile else {"full_name": None}
 
     return ok(data=submissions)
 
