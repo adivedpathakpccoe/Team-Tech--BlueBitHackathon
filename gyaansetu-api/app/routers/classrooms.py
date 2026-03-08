@@ -4,7 +4,9 @@ from fastapi import APIRouter, Depends
 from app.core.deps import DbDep, TeacherDep, CurrentUserDep
 from app.core.responses import ok
 from app.models.classroom import ClassroomCreate, BatchCreate, JoinBatchRequest
+from app.models.assignment import ClassroomAssignmentCreate
 from app.services.classroom_service import ClassroomService
+from app.services.assignment_service import AssignmentService
 
 router = APIRouter()
 
@@ -14,6 +16,13 @@ def get_classroom_service(db: DbDep) -> ClassroomService:
 
 
 ClassroomServiceDep = Annotated[ClassroomService, Depends(get_classroom_service)]
+
+
+def get_assignment_service(db: DbDep) -> AssignmentService:
+    return AssignmentService(db)
+
+
+AssignmentServiceDep = Annotated[AssignmentService, Depends(get_assignment_service)]
 
 
 # ------------------------------------------------------------------ #
@@ -100,4 +109,26 @@ async def list_members(
 ):
     """List all members of a batch (teacher-facing)."""
     result = await svc.list_members(batch_id=batch_id, teacher_id=teacher.id)
+    return ok(data=result)
+
+
+# ------------------------------------------------------------------ #
+# Assignments                                                        #
+# ------------------------------------------------------------------ #
+
+@router.post("/{classroom_id}/assignments", response_model=dict, status_code=201)
+async def create_classroom_assignment(
+    classroom_id: UUID, body: ClassroomAssignmentCreate, _: TeacherDep, svc: AssignmentServiceDep
+):
+    """Create a new assignment template for the classroom."""
+    result = await svc.create_classroom_assignment(classroom_id, body.model_dump())
+    return ok(data=result, message="Assignment created")
+
+
+@router.get("/{classroom_id}/assignments", response_model=dict)
+async def list_classroom_assignments(
+    classroom_id: UUID, _: TeacherDep, svc: AssignmentServiceDep
+):
+    """List all assignment templates in a classroom."""
+    result = await svc.list_classroom_assignments(classroom_id)
     return ok(data=result)

@@ -181,6 +181,38 @@ class AssignmentService(BaseService):
             "zero_width_encoded_id": zero_width_encoded_id,
         })
 
+    async def generate_ai_data(self, topic: str, difficulty: str) -> dict:
+        """Call Gemini to generate assignment content (returns topic, instructions)."""
+        prompt = _USER_PROMPT_TEMPLATE.format(topic=topic, difficulty=difficulty)
+        parsed = await _call_gemini(prompt)
+        return {
+            "topic": topic,
+            "description": parsed.get("assignment_text", ""),
+            "difficulty": difficulty
+        }
+
+    async def create_classroom_assignment(self, classroom_id: UUID, data: dict) -> dict:
+        """Create a new classroom-level assignment record."""
+        # Note: Ideally, this will be in a new table 'classroom_assignments'
+        # For simplicity, we assume this table matches the ClassroomAssignmentCreate schema.
+        res = await self.db.table("classroom_assignments").insert({
+            **data,
+            "classroom_id": str(classroom_id)
+        }).execute()
+        return res.data[0]
+
+    async def list_classroom_assignments(self, classroom_id: UUID) -> list[dict]:
+        """List all assignments defined for a specific classroom."""
+        res = await (
+            self.db.table("classroom_assignments")
+            .select("*")
+            .eq("classroom_id", str(classroom_id))
+            .order("created_at", desc=True)
+            .execute()
+        )
+        return res.data
+
+
     async def get_for_student(self, student_id: UUID) -> dict | None:
         """Fetch the most recent assignment variant for a given student."""
         res = await (

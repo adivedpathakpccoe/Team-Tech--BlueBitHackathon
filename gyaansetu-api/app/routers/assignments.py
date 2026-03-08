@@ -3,7 +3,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends
 from app.core.deps import DbDep, TeacherDep
 from app.core.responses import ok
-from app.models.assignment import AssignmentCreate
+from app.models.assignment import AssignmentCreate, AssignmentAIGenerateRequest
 from app.services.assignment_service import AssignmentService
 
 router = APIRouter()
@@ -22,6 +22,13 @@ async def generate_assignment(body: AssignmentCreate, _: TeacherDep, svc: Assign
     """Generate a unique assignment variant via Gemini and persist it."""
     result = await svc.generate(body)
     return ok(data=result, message="Assignment generated")
+
+
+@router.post("/ai-generate", response_model=dict, status_code=201)
+async def ai_generate_data(body: AssignmentAIGenerateRequest, _: TeacherDep, svc: AssignmentServiceDep):
+    """Call AI only to get assignment data; no persistence yet."""
+    result = await svc.generate_ai_data(topic=body.topic, difficulty=body.difficulty)
+    return ok(data=result)
 
 
 @router.get("/{student_id}", response_model=dict)

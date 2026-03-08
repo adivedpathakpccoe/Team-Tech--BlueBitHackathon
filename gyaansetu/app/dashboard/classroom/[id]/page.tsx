@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { classroomsApi } from '@/lib/api'
 import styles from './classroom.module.css'
 import BatchSection from './BatchSection'
+import AssignmentSection from './AssignmentSection'
 
 interface ClassroomPageProps {
     params: Promise<{ id: string }>
@@ -60,6 +61,7 @@ export default async function ClassroomPage({ params }: ClassroomPageProps) {
                 </header>
 
                 <BatchSection classroomId={classroomId} token={token} />
+                <AssignmentSection classroomId={classroomId} token={token} />
             </div>
         </div>
     )

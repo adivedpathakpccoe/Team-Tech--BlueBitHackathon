@@ -103,20 +103,58 @@ export const authApi = {
 
 // ─── Assignments endpoints ────────────────────────────────────────────────────
 
+export interface Assignment {
+    id: string
+    topic: string
+    description: string | null
+    difficulty: 'easy' | 'medium' | 'hard'
+    mode: 'proactive' | 'reactive'
+    enable_behavioral: boolean
+    enable_socratic: boolean
+    honeypot_hidden_instruction: boolean
+    honeypot_zero_width: boolean
+    honeypot_fake_fact: boolean
+    honeypot_sentiment_contradiction: boolean
+    created_at?: string
+    classroom_id?: string
+}
+
 export interface AssignmentCreate {
     topic: string
+    description?: string
     difficulty: 'easy' | 'medium' | 'hard'
-    student_id: string
     mode: 'proactive' | 'reactive'
+    enable_behavioral: boolean
+    enable_socratic: boolean
+    honeypot_hidden_instruction: boolean
+    honeypot_zero_width: boolean
+    honeypot_fake_fact: boolean
+    honeypot_sentiment_contradiction: boolean
+}
+
+export interface AssignmentGenerateRequest {
+    topic: string
+    difficulty: 'easy' | 'medium' | 'hard'
 }
 
 export const assignmentsApi = {
-    /** Generate a new assignment variant */
-    generate: (payload: AssignmentCreate, token: string) =>
-        apiFetch('/api/assignments/generate', {
+    /** Generate assignment content using AI (returns topic, description, etc.) */
+    generateData: (payload: AssignmentGenerateRequest, token: string) =>
+        apiFetch<Partial<Assignment>>('/api/assignments/ai-generate', {
             method: 'POST',
             body: JSON.stringify(payload),
         }, token),
+
+    /** Create a new assignment for a classroom */
+    create: (classroom_id: string, payload: AssignmentCreate, token: string) =>
+        apiFetch<Assignment>(`/api/classrooms/${classroom_id}/assignments`, {
+            method: 'POST',
+            body: JSON.stringify(payload),
+        }, token),
+
+    /** List assignments in a classroom */
+    list: (classroom_id: string, token: string) =>
+        apiFetch<Assignment[]>(`/api/classrooms/${classroom_id}/assignments`, {}, token),
 
     /** Get latest assignment for a student */
     getForStudent: (student_id: string) =>
