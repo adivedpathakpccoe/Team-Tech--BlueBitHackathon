@@ -18,8 +18,9 @@ export default async function DashboardPage() {
         const res = await authApi.me(token)
         user = res.data ?? null
     } catch {
-        // Token is invalid / expired → force re-login
-        redirect('/auth/login')
+        // Token is invalid / expired → go through route handler to clear cookies
+        // (direct redirect keeps the cookie, causing a middleware loop)
+        redirect('/auth/signout')
     }
 
     const name = user?.name ?? user?.email?.split('@')[0] ?? 'Agent'
