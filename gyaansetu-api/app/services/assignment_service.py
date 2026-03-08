@@ -8,7 +8,7 @@ from supabase import AsyncClient
 from app.config import settings
 from app.services.base import BaseService
 from app.models.assignment import AssignmentCreate
-from app.core.exceptions import ExternalServiceError
+from app.core.exceptions import ExternalServiceError, NotFoundError
 
 genai.configure(api_key=settings.gemini_api_key)
 _model = genai.GenerativeModel("gemini-2.5-flash")
@@ -323,6 +323,8 @@ class AssignmentService(BaseService):
             .insert({**data, "classroom_id": str(classroom_id)})
             .execute()
         )
+        if not res.data:
+            raise ExternalServiceError("Database", "Failed to create assignment record")
         return res.data[0]
 
     async def update_classroom_assignment(self, assignment_id: UUID, data: dict) -> dict:
@@ -333,6 +335,8 @@ class AssignmentService(BaseService):
             .eq("id", str(assignment_id))
             .execute()
         )
+        if not res.data:
+            raise NotFoundError("Classroom Assignment", str(assignment_id))
         return res.data[0]
 
     async def list_classroom_assignments(self, classroom_id: UUID) -> list[dict]:
@@ -356,6 +360,8 @@ class AssignmentService(BaseService):
             .single()
             .execute()
         )
+        if not ca_res.data:
+            raise NotFoundError("Classroom Assignment", str(classroom_assignment_id))
         ca = ca_res.data
 
         # 2. Fetch all students in the batch
@@ -468,6 +474,8 @@ class AssignmentService(BaseService):
                 record["wrong_fact_signal"] = parsed["wrong_fact_signal"]
 
         insert_res = await self.db.table("assignments").insert(record).execute()
+        if not insert_res.data:
+            return None
         new_row = insert_res.data[0]
         new_row["topic"] = ca.get("topic")
         new_row["difficulty"] = ca.get("difficulty")

@@ -132,6 +132,7 @@ export interface Assignment {
     honeypot_sentiment_contradiction: boolean
     created_at?: string
     classroom_id?: string
+    batch_ids?: string[]
 }
 
 export interface AssignmentCreate {
@@ -145,6 +146,7 @@ export interface AssignmentCreate {
     honeypot_zero_width: boolean
     honeypot_fake_fact: boolean
     honeypot_sentiment_contradiction: boolean
+    batch_ids?: string[]
 }
 
 export interface AssignmentGenerateRequest {

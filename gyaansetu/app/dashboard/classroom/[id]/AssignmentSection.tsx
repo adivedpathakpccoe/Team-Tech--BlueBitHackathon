@@ -13,6 +13,8 @@ export default function AssignmentSection({ classroomId, token }: { classroomId:
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [isGenerating, setIsGenerating] = useState(false)
     const [generatedPreview, setGeneratedPreview] = useState<{ topic: string; description: string; difficulty: string } | null>(null)
+    const [batches, setBatches] = useState<any[]>([])
+    const [selectedBatchIds, setSelectedBatchIds] = useState<string[]>([])
 
     // Form states
     const [topic, setTopic] = useState('')
@@ -30,7 +32,20 @@ export default function AssignmentSection({ classroomId, token }: { classroomId:
 
     useEffect(() => {
         fetchAssignments()
+        fetchBatches()
     }, [classroomId, token])
+
+    const fetchBatches = async () => {
+        try {
+            const { classroomsApi } = await import('@/lib/api')
+            const res = await classroomsApi.listBatches(classroomId, token)
+            if (res.ok && Array.isArray(res.data)) {
+                setBatches(res.data)
+            }
+        } catch (error) {
+            console.error('Failed to fetch batches:', error)
+        }
+    }
 
     const fetchAssignments = async () => {
         try {
@@ -87,6 +102,7 @@ export default function AssignmentSection({ classroomId, token }: { classroomId:
         setHoneypotZeroWidth(assignment.honeypot_zero_width)
         setHoneypotFakeFact(assignment.honeypot_fake_fact)
         setHoneypotSentimentContradiction(assignment.honeypot_sentiment_contradiction)
+        setSelectedBatchIds(assignment.batch_ids ?? [])
         setIsGenerating(false)
         setIsModalOpen(true)
     }
@@ -106,27 +122,30 @@ export default function AssignmentSection({ classroomId, token }: { classroomId:
             honeypot_hidden_instruction: honeypotHiddenInstruction,
             honeypot_zero_width: honeypotZeroWidth,
             honeypot_fake_fact: honeypotFakeFact,
-            honeypot_sentiment_contradiction: honeypotSentimentContradiction
+            honeypot_sentiment_contradiction: honeypotSentimentContradiction,
+            batch_ids: selectedBatchIds
         }
 
         try {
             if (editingAssignment) {
                 const res = await assignmentsApi.update(classroomId, editingAssignment.id, payload, token)
                 if (res.ok) {
-                    resetForm()
-                    setIsModalOpen(false)
                     toast.success('Assignment updated successfully')
-                    fetchAssignments()
+                } else {
+                    throw new Error('Failed to update assignment')
                 }
             } else {
                 const res = await assignmentsApi.create(classroomId, payload, token)
-                if (res.ok) {
-                    resetForm()
-                    setIsModalOpen(false)
+                if (res.ok && res.data) {
                     toast.success('Assignment created successfully')
-                    fetchAssignments()
+                } else {
+                    throw new Error('Failed to create assignment')
                 }
             }
+
+            resetForm()
+            setIsModalOpen(false)
+            fetchAssignments()
         } catch (error) {
             console.error('Failed to save assignment:', error)
             toast.error(error instanceof Error ? error.message : 'Error saving assignment')
@@ -148,6 +167,7 @@ export default function AssignmentSection({ classroomId, token }: { classroomId:
         setHoneypotZeroWidth(true)
         setHoneypotFakeFact(true)
         setHoneypotSentimentContradiction(false)
+        setSelectedBatchIds([])
         setIsGenerating(false)
     }
 
@@ -158,6 +178,14 @@ export default function AssignmentSection({ classroomId, token }: { classroomId:
         if (a.honeypot_fake_fact) count++
         if (a.honeypot_sentiment_contradiction) count++
         return count
+    }
+
+    const toggleBatch = (batchId: string) => {
+        setSelectedBatchIds(prev =>
+            prev.includes(batchId)
+                ? prev.filter(id => id !== batchId)
+                : [...prev, batchId]
+        )
     }
 
     return (
@@ -196,6 +224,16 @@ export default function AssignmentSection({ classroomId, token }: { classroomId:
                                     </button>
                                 </div>
                             </div>
+
+                            {assignment.batch_ids && assignment.batch_ids.length > 0 && (
+                                <div style={{ fontSize: '0.7rem', color: 'var(--muted)', marginBottom: '0.75rem', display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                                    <span style={{ fontWeight: 600 }}>Visible to:</span>
+                                    {assignment.batch_ids.map(bid => {
+                                        const b = batches.find(x => x.id === bid)
+                                        return <span key={bid} style={{ background: '#f0f0eb', padding: '0.1rem 0.4rem', border: '1px solid #e0e0da' }}>{b?.name || 'Unknown'}</span>
+                                    })}
+                                </div>
+                            )}
 
                             <p className={styles.assignmentDesc}>
                                 {assignment.description || 'No description provided.'}
@@ -461,6 +499,35 @@ export default function AssignmentSection({ classroomId, token }: { classroomId:
                                         </div>
                                     </label>
                                 </div>
+                            </div>
+
+                            {/* Batch Selection for Visibility */}
+                            <div style={{ marginBottom: '2rem' }}>
+                                <label className={styles.label} style={{ color: '#6366f1', borderBottom: '1px solid #e0e7ff', paddingBottom: '0.5rem', marginBottom: '1rem' }}>Assign to Batches</label>
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '0.75rem', maxHeight: '150px', overflowY: 'auto', padding: '0.5rem' }}>
+                                    {batches.length > 0 ? (
+                                        batches.map(b => (
+                                            <label key={b.id} className={styles.checkboxContainer} style={{ background: selectedBatchIds.includes(b.id) ? '#f5f3ff' : 'white', border: `1px solid ${selectedBatchIds.includes(b.id) ? '#6366f1' : 'var(--border-dark)'}`, padding: '0.5rem 0.75rem' }}>
+                                                <input
+                                                    type="checkbox"
+                                                    className={styles.checkbox}
+                                                    checked={selectedBatchIds.includes(b.id)}
+                                                    onChange={() => toggleBatch(b.id)}
+                                                    style={{ width: '16px', height: '16px' }}
+                                                />
+                                                <div style={{ flex: 1 }}>
+                                                    <div className={styles.honeypotLabel} style={{ color: selectedBatchIds.includes(b.id) ? '#4338ca' : 'var(--ink)', fontSize: '0.75rem' }}>{b.name}</div>
+                                                    <div className={styles.honeypotDesc} style={{ fontSize: '0.65rem' }}>{b.member_count || 0} Students</div>
+                                                </div>
+                                            </label>
+                                        ))
+                                    ) : (
+                                        <p style={{ fontSize: '0.75rem', color: 'var(--muted)', fontStyle: 'italic' }}>No batches found. Create one first.</p>
+                                    )}
+                                </div>
+                                <p style={{ fontSize: '0.7rem', color: 'var(--muted)', marginTop: '0.75rem' }}>
+                                    If no batches are selected, the assignment will be visible to <strong>everyone</strong> in the classroom.
+                                </p>
                             </div>
 
                             <div className={styles.modalActions}>

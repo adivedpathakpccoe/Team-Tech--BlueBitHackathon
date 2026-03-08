@@ -198,18 +198,28 @@ class ClassroomService(BaseService):
         return result
 
     async def get_classroom_assignments_for_student(self, student_id: UUID, classroom_id: UUID) -> list:
-        """Return classroom assignments for a classroom the student is enrolled in."""
-        # Fetch all batch classroom_ids the student belongs to (single query)
-        batches_res = await (
+        """Return classroom assignments for a student, filtered by their batch(es)."""
+        # 1. Find all batches the student is in *within this specific classroom*
+        membership_res = await (
             self.db.table("batch_members")
-            .select("batches(classroom_id)")
+            .select("batch_id, batches(classroom_id)")
             .eq("student_id", str(student_id))
             .execute()
         )
-        enrolled_classroom_ids = {m["batches"]["classroom_id"] for m in batches_res.data}
-        if str(classroom_id) not in enrolled_classroom_ids:
-            raise ForbiddenError("Not enrolled in this classroom")
+        
+        # All batches the student is enrolled in for this classroom
+        my_batch_ids = {
+            m["batch_id"] 
+            for m in membership_res.data 
+            if m["batches"]["classroom_id"] == str(classroom_id)
+        }
 
+        if not my_batch_ids:
+            raise ForbiddenError("Not enrolled in any batch in this classroom")
+
+        # 2. Fetch all assignments for this classroom
+        # NOTE: In a real app with 1000s of assignments, we'd use array_overlap filter in Supabase.
+        # For this hackathon, we fetch all for classroom and filter in Python for simplicity.
         res = await (
             self.db.table("classroom_assignments")
             .select("*")
@@ -217,7 +227,23 @@ class ClassroomService(BaseService):
             .order("created_at", desc=True)
             .execute()
         )
-        return res.data
+        
+        filtered = []
+        for ca in res.data:
+            ca_batch_ids = ca.get("batch_ids")
+            # Logic: If batch_ids is null or empty, it's a global courtroom assignment
+            # (or we can decide it's legacy).
+            # The user says "let the teacher select which batches to send the assignment to".
+            # So we only show if my_batch_ids overlaps with ca_batch_ids.
+            if not ca_batch_ids:
+                # If no specific batches are set, we treat it as visible to all (fallback)
+                filtered.append(ca)
+            else:
+                # Check if student is in any of the allowed batches
+                if any(bid in my_batch_ids for bid in ca_batch_ids):
+                    filtered.append(ca)
+
+        return filtered
 
     async def list_members(self, batch_id: UUID, teacher_id: UUID) -> list:
         """Return all members of a batch, verifying the caller owns the parent classroom."""

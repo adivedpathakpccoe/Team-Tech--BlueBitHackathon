@@ -41,6 +41,7 @@ class ClassroomAssignmentCreate(BaseModel):
     honeypot_zero_width: bool = True
     honeypot_fake_fact: bool = True
     honeypot_sentiment_contradiction: bool = False
+    batch_ids: list[UUID] | None = None
 
 
 class ClassroomAssignmentResponse(TimestampedModel):
@@ -58,6 +59,7 @@ class ClassroomAssignmentResponse(TimestampedModel):
     honeypot_zero_width: bool
     honeypot_fake_fact: bool
     honeypot_sentiment_contradiction: bool
+    batch_ids: list[UUID] | None = None
 
 
 class ClassroomAssignmentUpdate(BaseModel):
@@ -72,6 +74,7 @@ class ClassroomAssignmentUpdate(BaseModel):
     honeypot_zero_width: bool | None = None
     honeypot_fake_fact: bool | None = None
     honeypot_sentiment_contradiction: bool | None = None
+    batch_ids: list[UUID] | None = None
 
 
 class AssignmentAIGenerateRequest(BaseModel):
