@@ -60,6 +60,20 @@ class ClassroomAssignmentResponse(TimestampedModel):
     honeypot_sentiment_contradiction: bool
 
 
+class ClassroomAssignmentUpdate(BaseModel):
+    """Request body for partially updating a classroom-level assignment."""
+    topic: str | None = None
+    description: str | None = None
+    difficulty: Literal["easy", "medium", "hard"] | None = None
+    mode: Literal["proactive", "reactive"] | None = None
+    enable_behavioral: bool | None = None
+    enable_socratic: bool | None = None
+    honeypot_hidden_instruction: bool | None = None
+    honeypot_zero_width: bool | None = None
+    honeypot_fake_fact: bool | None = None
+    honeypot_sentiment_contradiction: bool | None = None
+
+
 class AssignmentAIGenerateRequest(BaseModel):
     """Request for AI-assisted assignment content generation."""
     topic: str

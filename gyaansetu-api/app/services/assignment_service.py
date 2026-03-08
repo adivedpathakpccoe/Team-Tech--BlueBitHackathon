@@ -10,7 +10,7 @@ from app.models.assignment import AssignmentCreate
 from app.core.exceptions import ExternalServiceError
 
 genai.configure(api_key=settings.gemini_api_key)
-_model = genai.GenerativeModel("gemini-2.0-flash-lite")
+_model = genai.GenerativeModel("gemini-2.5-flash")
 logger = logging.getLogger(__name__)
 
 # Zero-width character encoding: 0 → ZWSP, 1 → ZWNJ
@@ -234,13 +234,17 @@ async def _call_gemini_variant(topic: str, difficulty: str, max_retries: int = 3
 
 async def _call_gemini_description(topic: str, difficulty: str, max_retries: int = 3) -> dict:
     """Call Gemini to generate a teacher-facing assignment description (no honeypot fields)."""
+    import asyncio
     prompt = _DESC_PROMPT.format(topic=topic, difficulty=difficulty)
     last_error: Exception | None = None
 
     for attempt in range(1, max_retries + 1):
         try:
-            response = await _model.generate_content_async(
-                _JSON_ONLY_PRIME + [{"role": "user", "parts": [prompt]}]
+            response = await asyncio.wait_for(
+                _model.generate_content_async(
+                    _JSON_ONLY_PRIME + [{"role": "user", "parts": [prompt]}]
+                ),
+                timeout=15.0,
             )
             raw = _strip_fences(response.text)
             parsed = json.loads(raw)
@@ -256,7 +260,7 @@ async def _call_gemini_description(topic: str, difficulty: str, max_retries: int
 
             return parsed
 
-        except (json.JSONDecodeError, ValueError, KeyError) as exc:
+        except (json.JSONDecodeError, ValueError, KeyError, asyncio.TimeoutError) as exc:
             last_error = exc
             logger.warning(
                 "Gemini description attempt %d/%d failed: %s",
@@ -316,6 +320,16 @@ class AssignmentService(BaseService):
         res = await (
             self.db.table("classroom_assignments")
             .insert({**data, "classroom_id": str(classroom_id)})
+            .execute()
+        )
+        return res.data[0]
+
+    async def update_classroom_assignment(self, assignment_id: UUID, data: dict) -> dict:
+        """Partially update a classroom-level assignment record."""
+        res = await (
+            self.db.table("classroom_assignments")
+            .update(data)
+            .eq("id", str(assignment_id))
             .execute()
         )
         return res.data[0]

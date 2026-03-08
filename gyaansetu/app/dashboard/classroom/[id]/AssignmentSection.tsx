@@ -8,9 +8,11 @@ import { toast } from 'sonner'
 export default function AssignmentSection({ classroomId, token }: { classroomId: string, token: string }) {
     const [assignments, setAssignments] = useState<Assignment[]>([])
     const [isModalOpen, setIsModalOpen] = useState(false)
+    const [editingAssignment, setEditingAssignment] = useState<Assignment | null>(null)
     const [isLoading, setIsLoading] = useState(true)
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [isGenerating, setIsGenerating] = useState(false)
+    const [generatedPreview, setGeneratedPreview] = useState<{ topic: string; description: string; difficulty: string } | null>(null)
 
     // Form states
     const [topic, setTopic] = useState('')
@@ -56,10 +58,14 @@ export default function AssignmentSection({ classroomId, token }: { classroomId:
             toast.info('Generating assignment data with AI...')
             const res = await assignmentsApi.generateData({ topic, difficulty }, token)
             if (res.ok && res.data) {
-                if (res.data.topic) setTopic(res.data.topic)
-                if (res.data.description) setDescription(res.data.description)
-                if (res.data.difficulty) setDifficulty(res.data.difficulty as 'easy' | 'medium' | 'hard')
-                toast.success('AI generation complete! You can now review and refine.')
+                const newTopic = res.data.topic ?? topic
+                const newDesc = res.data.description ?? ''
+                const newDiff = (res.data.difficulty as 'easy' | 'medium' | 'hard') ?? difficulty
+                setTopic(newTopic)
+                setDescription(newDesc)
+                setDifficulty(newDiff)
+                setGeneratedPreview({ topic: newTopic, description: newDesc, difficulty: newDiff })
+                toast.success('AI generation complete!')
             }
         } catch (error) {
             console.error('AI generation failed:', error)
@@ -69,7 +75,23 @@ export default function AssignmentSection({ classroomId, token }: { classroomId:
         }
     }
 
-    const handleCreate = async (e: React.FormEvent) => {
+    const openEditModal = (assignment: Assignment) => {
+        setEditingAssignment(assignment)
+        setTopic(assignment.topic)
+        setDescription(assignment.description ?? '')
+        setDifficulty(assignment.difficulty)
+        setMode(assignment.mode)
+        setEnableBehavioral(assignment.enable_behavioral)
+        setEnableSocratic(assignment.enable_socratic)
+        setHoneypotHiddenInstruction(assignment.honeypot_hidden_instruction)
+        setHoneypotZeroWidth(assignment.honeypot_zero_width)
+        setHoneypotFakeFact(assignment.honeypot_fake_fact)
+        setHoneypotSentimentContradiction(assignment.honeypot_sentiment_contradiction)
+        setIsGenerating(false)
+        setIsModalOpen(true)
+    }
+
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
         if (!topic.trim() || isSubmitting) return
 
@@ -88,22 +110,34 @@ export default function AssignmentSection({ classroomId, token }: { classroomId:
         }
 
         try {
-            const res = await assignmentsApi.create(classroomId, payload, token)
-            if (res.ok) {
-                resetForm()
-                setIsModalOpen(false)
-                toast.success('Assignment created successfully')
-                fetchAssignments()
+            if (editingAssignment) {
+                const res = await assignmentsApi.update(classroomId, editingAssignment.id, payload, token)
+                if (res.ok) {
+                    resetForm()
+                    setIsModalOpen(false)
+                    toast.success('Assignment updated successfully')
+                    fetchAssignments()
+                }
+            } else {
+                const res = await assignmentsApi.create(classroomId, payload, token)
+                if (res.ok) {
+                    resetForm()
+                    setIsModalOpen(false)
+                    toast.success('Assignment created successfully')
+                    fetchAssignments()
+                }
             }
         } catch (error) {
-            console.error('Failed to create assignment:', error)
-            toast.error(error instanceof Error ? error.message : 'Error creating assignment')
+            console.error('Failed to save assignment:', error)
+            toast.error(error instanceof Error ? error.message : 'Error saving assignment')
         } finally {
             setIsSubmitting(false)
         }
     }
 
     const resetForm = () => {
+        setEditingAssignment(null)
+        setGeneratedPreview(null)
         setTopic('')
         setDescription('')
         setDifficulty('medium')
@@ -114,6 +148,7 @@ export default function AssignmentSection({ classroomId, token }: { classroomId:
         setHoneypotZeroWidth(true)
         setHoneypotFakeFact(true)
         setHoneypotSentimentContradiction(false)
+        setIsGenerating(false)
     }
 
     const getActiveHoneypotCount = (a: Assignment) => {
@@ -131,7 +166,7 @@ export default function AssignmentSection({ classroomId, token }: { classroomId:
                 <h2 className={styles.sectionTitle}>Assignments</h2>
                 <button
                     className={styles.createBtn}
-                    onClick={() => setIsModalOpen(true)}
+                    onClick={() => { resetForm(); setIsModalOpen(true) }}
                 >
                     + Create Assignment
                 </button>
@@ -145,10 +180,20 @@ export default function AssignmentSection({ classroomId, token }: { classroomId:
                         <div key={assignment.id} className={styles.assignmentCard}>
                             <div className={styles.assignmentHeader}>
                                 <h3 className={styles.assignmentTitle}>{assignment.topic}</h3>
-                                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                                     <span className={`${styles.difficultyBadge} ${styles[assignment.difficulty]}`}>
                                         {assignment.difficulty}
                                     </span>
+                                    <button
+                                        className={styles.editBtn}
+                                        onClick={() => openEditModal(assignment)}
+                                        title="Edit assignment"
+                                    >
+                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                                        </svg>
+                                    </button>
                                 </div>
                             </div>
 
@@ -157,19 +202,23 @@ export default function AssignmentSection({ classroomId, token }: { classroomId:
                             </p>
 
                             <div className={styles.assignmentMeta}>
-                                <div className={styles.assignmentMode}>
-                                    <span>Mode: {assignment.mode}</span>
+                                <div className={styles.assignmentBadgeRow}>
+                                    <span className={`${styles.modeBadge} ${assignment.mode === 'proactive' ? styles.modeProactive : styles.modeReactive}`}>
+                                        {assignment.mode === 'proactive' ? '⚡ Proactive' : '⏱ Reactive'}
+                                    </span>
                                     {getActiveHoneypotCount(assignment) > 0 && (
                                         <span className={styles.honeypotTag}>
                                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" /></svg>
-                                            {getActiveHoneypotCount(assignment)} Traps Active
+                                            {getActiveHoneypotCount(assignment)} Traps
                                         </span>
                                     )}
                                 </div>
-                                <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
-                                    {assignment.enable_behavioral && <span style={{ fontSize: '0.65rem', background: '#e0e7ff', padding: '0.2rem 0.5rem', color: '#4338ca', fontWeight: 600 }}>BEHAVIORAL</span>}
-                                    {assignment.enable_socratic && <span style={{ fontSize: '0.65rem', background: '#fef3c7', padding: '0.2rem 0.5rem', color: '#92400e', fontWeight: 600 }}>SOCRATIC</span>}
-                                </div>
+                                {(assignment.enable_behavioral || assignment.enable_socratic) && (
+                                    <div className={styles.detectionBadgeRow}>
+                                        {assignment.enable_behavioral && <span className={styles.behavioralBadge}>Behavioral</span>}
+                                        {assignment.enable_socratic && <span className={styles.socraticBadge}>Socratic</span>}
+                                    </div>
+                                )}
                                 <button className={styles.viewBtn}>View Detailed Analytics</button>
                             </div>
                         </div>
@@ -188,7 +237,7 @@ export default function AssignmentSection({ classroomId, token }: { classroomId:
                         style={{ maxWidth: '700px', maxHeight: '90vh', overflowY: 'auto' }}
                         onClick={(e) => e.stopPropagation()}
                     >
-                        <h3 className={styles.modalTitle}>Configure Assignment</h3>
+                        <h3 className={styles.modalTitle}>{editingAssignment ? 'Edit Assignment' : 'Configure Assignment'}</h3>
 
                         <button
                             type="button"
@@ -197,17 +246,88 @@ export default function AssignmentSection({ classroomId, token }: { classroomId:
                             disabled={isGenerating || !topic}
                             title={!topic ? "Enter a topic first" : "Generate with AI"}
                         >
-                            {isGenerating ? (
-                                <>Generating Content...</>
-                            ) : (
-                                <>
-                                    <svg className={styles.aiIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" /></svg>
-                                    Generate Full Data with Gen-AI
-                                </>
-                            )}
+                            <svg
+                                className={isGenerating ? styles.aiIconSpinning : styles.aiIcon}
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                            >
+                                <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+                            </svg>
+                            {isGenerating ? 'Generating Content...' : 'Generate Full Data with Gen-AI'}
                         </button>
 
-                        <form onSubmit={handleCreate}>
+                        {generatedPreview && (
+                            <div className={styles.generatedPreview}>
+                                <div className={styles.previewHeader}>
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 12l2 2 4-4" /><path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" /></svg>
+                                    AI Generated — Review &amp; Edit Below
+                                </div>
+
+                                <div className={styles.previewTopicRow}>
+                                    <span className={styles.previewLabel}>Topic</span>
+                                    <span className={styles.previewTopic}>{generatedPreview.topic}</span>
+                                    <span className={`${styles.difficultyBadge} ${styles[generatedPreview.difficulty as 'easy' | 'medium' | 'hard']}`}>
+                                        {generatedPreview.difficulty}
+                                    </span>
+                                </div>
+
+                                <div className={styles.previewDesc}>
+                                    <span className={styles.previewLabel}>Description</span>
+                                    <p>{generatedPreview.description}</p>
+                                </div>
+
+                                <div className={styles.previewTraps}>
+                                    <span className={styles.previewLabel}>Traps that will fire</span>
+                                    <div className={styles.previewTrapGrid}>
+                                        {honeypotHiddenInstruction && (
+                                            <span className={styles.previewTrapItem}>
+                                                <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10" /></svg>
+                                                Invisible Meta-Data
+                                            </span>
+                                        )}
+                                        {honeypotZeroWidth && (
+                                            <span className={styles.previewTrapItem}>
+                                                <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10" /></svg>
+                                                Zero-Width DNA
+                                            </span>
+                                        )}
+                                        {honeypotFakeFact && (
+                                            <span className={styles.previewTrapItem}>
+                                                <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10" /></svg>
+                                                Fake Fact Signal
+                                            </span>
+                                        )}
+                                        {honeypotSentimentContradiction && (
+                                            <span className={styles.previewTrapItem}>
+                                                <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10" /></svg>
+                                                Sentiment Trap
+                                            </span>
+                                        )}
+                                        {!honeypotHiddenInstruction && !honeypotZeroWidth && !honeypotFakeFact && !honeypotSentimentContradiction && (
+                                            <span style={{ fontSize: '0.75rem', color: 'rgba(219,39,119,0.5)', fontStyle: 'italic' }}>No traps enabled</span>
+                                        )}
+                                    </div>
+                                    <div className={styles.previewTrapGrid} style={{ marginTop: '0.5rem' }}>
+                                        {enableBehavioral && (
+                                            <span className={styles.previewDetectionItem}>
+                                                <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10" /></svg>
+                                                Behavioral Tracking
+                                            </span>
+                                        )}
+                                        {enableSocratic && (
+                                            <span className={styles.previewDetectionItem}>
+                                                <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10" /></svg>
+                                                Socratic Challenge
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        <form onSubmit={handleSubmit}>
                             <div className={styles.formGroup}>
                                 <label className={styles.label}>Assignment Topic</label>
                                 <input
@@ -360,7 +480,7 @@ export default function AssignmentSection({ classroomId, token }: { classroomId:
                                     className={styles.submitBtn}
                                     disabled={isSubmitting || !topic.trim()}
                                 >
-                                    {isSubmitting ? 'Finalizing...' : 'Create Assignment'}
+                                    {isSubmitting ? 'Saving...' : editingAssignment ? 'Save Changes' : 'Create Assignment'}
                                 </button>
                             </div>
                         </form>

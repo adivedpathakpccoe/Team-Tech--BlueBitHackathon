@@ -532,7 +532,7 @@ Write `testing/methodology.md` summarising approach.
 
 1. Teacher assignment creation with **mode toggle** (Proactive / Reactive)
 2. **Reactive path first** — file upload → text extraction → TF-IDF cosine similarity → score
-3. Educator dashboard (works for both modes)
+3. Educator dashboard (wgorks for both modes)
 4. Proactive writing editor — integrate `useDiffRecorder` hook from day one
 5. DiffLog save + basic WritingDNA replay (play/pause only, no markers yet)
 6. Assignment DNA Engine (**Gemini API**) + honeypot trap injection

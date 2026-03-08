@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends
 from app.core.deps import DbDep, TeacherDep, CurrentUserDep
 from app.core.responses import ok
 from app.models.classroom import ClassroomCreate, BatchCreate, JoinBatchRequest
-from app.models.assignment import ClassroomAssignmentCreate
+from app.models.assignment import ClassroomAssignmentCreate, ClassroomAssignmentUpdate
 from app.services.classroom_service import ClassroomService
 from app.services.assignment_service import AssignmentService
 
@@ -132,3 +132,17 @@ async def list_classroom_assignments(
     """List all assignment templates in a classroom."""
     result = await svc.list_classroom_assignments(classroom_id)
     return ok(data=result)
+
+
+@router.patch("/{classroom_id}/assignments/{assignment_id}", response_model=dict)
+async def update_classroom_assignment(
+    classroom_id: UUID,
+    assignment_id: UUID,
+    body: ClassroomAssignmentUpdate,
+    _: TeacherDep,
+    svc: AssignmentServiceDep,
+):
+    """Partially update an existing classroom assignment."""
+    update_data = body.model_dump(exclude_none=True)
+    result = await svc.update_classroom_assignment(assignment_id, update_data)
+    return ok(data=result, message="Assignment updated")

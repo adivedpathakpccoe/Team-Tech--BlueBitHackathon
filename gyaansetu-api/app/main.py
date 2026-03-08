@@ -31,6 +31,7 @@ def create_app() -> FastAPI:
         allow_credentials=False,       # Must be False when allow_origins=["*"]
         allow_methods=["*"],
         allow_headers=["*"],
+        max_age=0,                     # Don't cache preflight; avoids stale CORS blocks on restart
     )
 
     register_exception_handlers(app)

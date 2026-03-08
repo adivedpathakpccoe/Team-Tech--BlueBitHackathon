@@ -7,7 +7,7 @@ from app.services.base import BaseService
 from app.core.exceptions import ExternalServiceError, NotFoundError
 
 genai.configure(api_key=settings.gemini_api_key)
-_model = genai.GenerativeModel("gemini-2.0-flash-lite")
+_model = genai.GenerativeModel("gemini-2.5-flash")
 
 _CHALLENGE_PROMPT = """
 You are an academic integrity examiner. Read the following student essay and generate ONE probing challenge question that tests whether the student truly understands what they wrote.

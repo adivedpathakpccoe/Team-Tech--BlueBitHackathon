@@ -36,6 +36,7 @@ async function apiFetch<T>(
     path: string,
     options: RequestInit = {},
     token?: string,
+    timeoutMs = 15_000,
 ): Promise<ApiResponse<T>> {
     const headers: Record<string, string> = {
         'Content-Type': 'application/json',
@@ -46,10 +47,24 @@ async function apiFetch<T>(
         headers['Authorization'] = `Bearer ${token}`
     }
 
-    const res = await fetch(`${BASE_URL}${path}`, {
-        ...options,
-        headers,
-    })
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), timeoutMs)
+
+    let res: Response
+    try {
+        res = await fetch(`${BASE_URL}${path}`, {
+            ...options,
+            headers,
+            signal: controller.signal,
+        })
+    } catch (err: unknown) {
+        if (err instanceof Error && err.name === 'AbortError') {
+            throw new Error('Request timed out. Please try again.')
+        }
+        throw err
+    } finally {
+        clearTimeout(timer)
+    }
 
     const json = await res.json()
 
@@ -143,7 +158,7 @@ export const assignmentsApi = {
         apiFetch<Partial<Assignment>>('/api/assignments/ai-generate', {
             method: 'POST',
             body: JSON.stringify(payload),
-        }, token),
+        }, token, 60_000),
 
     /** Create a new assignment for a classroom */
     create: (classroom_id: string, payload: AssignmentCreate, token: string) =>
@@ -155,6 +170,13 @@ export const assignmentsApi = {
     /** List assignments in a classroom */
     list: (classroom_id: string, token: string) =>
         apiFetch<Assignment[]>(`/api/classrooms/${classroom_id}/assignments`, {}, token),
+
+    /** Update an existing classroom assignment */
+    update: (classroom_id: string, assignment_id: string, payload: Partial<AssignmentCreate>, token: string) =>
+        apiFetch<Assignment>(`/api/classrooms/${classroom_id}/assignments/${assignment_id}`, {
+            method: 'PATCH',
+            body: JSON.stringify(payload),
+        }, token),
 
     /** Get latest assignment for a student */
     getForStudent: (student_id: string) =>

@@ -449,16 +449,106 @@
     border: 1px solid #dc2626;
 }
 
-.assignmentMode {
+.assignmentBadgeRow {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.modeBadge {
+    font-family: var(--font-display);
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 0.3rem 0.7rem;
+    border-radius: 0;
+}
+
+.modeProactive {
+    background: #ecfdf5;
+    color: #065f46;
+    border: 1px solid #059669;
+}
+
+.modeReactive {
+    background: #fffbeb;
+    color: #78350f;
+    border: 1px solid #d97706;
+}
+
+.detectionBadgeRow {
+    display: flex;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+}
+
+.behavioralBadge {
+    font-family: var(--font-display);
+    font-size: 0.6rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    background: #e0e7ff;
+    color: #3730a3;
+    padding: 0.2rem 0.5rem;
+    border: 1px solid #a5b4fc;
+}
+
+.socraticBadge {
+    font-family: var(--font-display);
+    font-size: 0.6rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    background: #fef3c7;
+    color: #78350f;
+    padding: 0.2rem 0.5rem;
+    border: 1px solid #fcd34d;
+}
+
+.editBtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 1px solid var(--border-dark);
+    color: var(--muted);
+    width: 28px;
+    height: 28px;
+    cursor: pointer;
+    transition: all 0.2s;
+    flex-shrink: 0;
+}
+
+.editBtn:hover {
+    background: var(--ink);
+    color: var(--cream);
+    border-color: var(--ink);
+}
+
+.viewBtn {
     font-family: var(--font-display);
     font-size: 0.7rem;
-    color: var(--muted);
     font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.1em;
-    margin-bottom: 1.5rem;
-    display: flex;
-    justify-content: space-between;
+    letter-spacing: 0.08em;
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--border-dark);
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+    width: 100%;
+    transition: all 0.2s;
+}
+
+.viewBtn:hover {
+    background: var(--ink);
+    color: var(--cream);
+    border-color: var(--ink);
 }
 
 .honeypotTag {
@@ -517,7 +607,12 @@
 .aiIcon {
     width: 18px;
     height: 18px;
-    animation: spin 3s infinite linear;
+}
+
+.aiIconSpinning {
+    width: 18px;
+    height: 18px;
+    animation: spin 1s infinite linear;
 }
 
 @keyframes spin {
@@ -597,4 +692,113 @@
     display: flex;
     flex-direction: column;
     gap: 1rem;
+}
+
+/* ── Generated AI Preview Panel ────────────────────────────────── */
+
+.generatedPreview {
+    background: #f0fdf4;
+    border: 1px solid #86efac;
+    border-left: 3px solid #16a34a;
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.previewHeader {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-family: var(--font-display);
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #15803d;
+}
+
+.previewLabel {
+    display: block;
+    font-family: var(--font-display);
+    font-size: 0.6rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #15803d;
+    opacity: 0.7;
+    margin-bottom: 0.3rem;
+}
+
+.previewTopicRow {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+
+.previewTopic {
+    font-family: var(--font-display);
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--ink);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.previewDesc {
+    display: flex;
+    flex-direction: column;
+}
+
+.previewDesc p {
+    font-family: var(--font-body);
+    font-size: 0.85rem;
+    color: rgba(8, 8, 8, 0.7);
+    line-height: 1.6;
+    margin: 0;
+}
+
+.previewTraps {
+    border-top: 1px solid #bbf7d0;
+    padding-top: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.previewTrapGrid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+.previewTrapItem {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-family: var(--font-display);
+    font-size: 0.6rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #db2777;
+    background: #fdf2f8;
+    border: 1px solid #fbcfe8;
+    padding: 0.25rem 0.6rem;
+}
+
+.previewDetectionItem {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-family: var(--font-display);
+    font-size: 0.6rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #3730a3;
+    background: #eef2ff;
+    border: 1px solid #c7d2fe;
+    padding: 0.25rem 0.6rem;
 }
