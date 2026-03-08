@@ -111,6 +111,7 @@ button {
 .soberDashboard {
   background-color: var(--cream) !important;
   color: var(--ink) !important;
+  --muted: rgba(8, 8, 6, 0.45);
 }
 
 .soberDashboard::before,

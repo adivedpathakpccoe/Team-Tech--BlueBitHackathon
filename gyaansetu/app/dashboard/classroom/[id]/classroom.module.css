@@ -12,6 +12,7 @@
     justify-content: space-between;
     background: var(--ink);
     color: var(--cream);
+    --muted: rgba(240, 236, 224, 0.45);
 }
 
 .dashBrand {

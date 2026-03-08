@@ -12,6 +12,7 @@
     justify-content: space-between;
     background: var(--ink);
     color: var(--cream);
+    --muted: rgba(240, 236, 224, 0.45);
 }
 
 .dashBrand {
@@ -702,9 +703,20 @@
     padding: 0.25rem 0.65rem;
 }
 
-.diffEasy   { color: #2e7d32; background: #e8f5e9; }
-.diffMedium { color: #b08d00; background: #fffcf0; }
-.diffHard   { color: #c0392b; background: #fef1f0; }
+.diffEasy {
+    color: #2e7d32;
+    background: #e8f5e9;
+}
+
+.diffMedium {
+    color: #b08d00;
+    background: #fffcf0;
+}
+
+.diffHard {
+    color: #c0392b;
+    background: #fef1f0;
+}
 
 .modeBadge {
     color: #555;
