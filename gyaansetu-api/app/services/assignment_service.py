@@ -408,3 +408,25 @@ class AssignmentService(BaseService):
             .execute()
         )
         return res.data
+
+    async def get_student_variant(self, student_id: UUID, classroom_assignment_id: UUID) -> dict | None:
+        """Fetch a student's specific variant for a classroom assignment, with template metadata."""
+        res = await (
+            self.db.table("assignments")
+            .select("*, classroom_assignments(topic, difficulty, enable_behavioral, enable_socratic)")
+            .eq("student_id", str(student_id))
+            .eq("classroom_assignment_id", str(classroom_assignment_id))
+            .order("created_at", desc=True)
+            .limit(1)
+            .maybe_single()
+            .execute()
+        )
+        if not res.data:
+            return None
+        data = res.data
+        ca = data.pop("classroom_assignments", {}) or {}
+        data["topic"] = ca.get("topic")
+        data["difficulty"] = ca.get("difficulty")
+        data["enable_behavioral"] = ca.get("enable_behavioral", True)
+        data["enable_socratic"] = ca.get("enable_socratic", True)
+        return data

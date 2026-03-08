@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import { studentApi, classroomsApi, type EnrolledBatch, type Assignment } from '@/lib/api'
 import styles from './dashboard.module.css'
 import { toast } from 'sonner'
@@ -23,6 +24,7 @@ const difficultyStyle: Record<string, string> = {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function StudentSection({ token }: { token: string }) {
+    const router = useRouter()
     const [batches, setBatches] = useState<BatchWithAssignments[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [joinCode, setJoinCode] = useState('')
@@ -197,7 +199,12 @@ export default function StudentSection({ token }: { token: string }) {
                                         ) : (
                                             <div className={styles.assignmentGrid}>
                                                 {batch.assignments.map((a) => (
-                                                    <div key={a.id} className={styles.assignmentRow}>
+                                                    <div
+                                                        key={a.id}
+                                                        className={styles.assignmentRow}
+                                                        style={{ cursor: 'pointer' }}
+                                                        onClick={() => router.push(`/dashboard/assignment/${a.id}`)}
+                                                    >
                                                         <div className={styles.assignmentTopic}>
                                                             {a.topic}
                                                         </div>
@@ -209,6 +216,9 @@ export default function StudentSection({ token }: { token: string }) {
                                                             </span>
                                                             <span className={styles.modeBadge}>
                                                                 {a.mode}
+                                                            </span>
+                                                            <span className={styles.modeBadge} style={{ color: '#1a8c82', background: '#e8f4f3' }}>
+                                                                Open →
                                                             </span>
                                                         </div>
                                                         {a.description && (

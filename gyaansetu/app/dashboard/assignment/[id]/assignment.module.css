@@ -1,0 +1,523 @@
+/* ─── Page shell ─────────────────────────────────────────────────────────────── */
+
+.page {
+    min-height: 100vh;
+    background: var(--cream);
+    color: var(--ink);
+}
+
+.topbar {
+    border-bottom: 1px solid var(--border-dark);
+    padding: 1rem 4rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--ink);
+}
+
+.brand {
+    font-family: var(--font-display);
+    font-size: 1.1rem;
+    font-weight: 700;
+    letter-spacing: 0.35em;
+    text-transform: uppercase;
+    color: var(--cream);
+    text-decoration: none;
+}
+
+.brandAccent {
+    color: var(--red);
+}
+
+.content {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 3rem 2rem 6rem;
+}
+
+.backLink {
+    display: inline-block;
+    font-family: var(--font-display);
+    font-size: 0.78rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--muted);
+    text-decoration: none;
+    margin-bottom: 2.5rem;
+    transition: color 0.2s;
+}
+
+.backLink:hover {
+    color: var(--teal);
+}
+
+/* ─── Workspace ──────────────────────────────────────────────────────────────── */
+
+.workspace {
+    display: flex;
+    flex-direction: column;
+    gap: 2.5rem;
+}
+
+/* ─── Prompt card ────────────────────────────────────────────────────────────── */
+
+.promptCard {
+    background: white;
+    border: 1px solid var(--border-dark);
+    padding: 2.5rem 3rem;
+    box-shadow: 0 2px 12px rgba(8, 8, 6, 0.04);
+}
+
+.promptMeta {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1.25rem;
+}
+
+.badge {
+    font-family: var(--font-display);
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    padding: 0.28rem 0.7rem;
+    background: #f0f0ec;
+    color: #555;
+}
+
+.diffEasy {
+    color: #2e7d32;
+    background: #e8f5e9;
+}
+
+.diffMedium {
+    color: #b08d00;
+    background: #fffcf0;
+}
+
+.diffHard {
+    color: #c0392b;
+    background: #fef1f0;
+}
+
+.promptTitle {
+    font-family: var(--font-display);
+    font-size: 1.6rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--ink);
+    margin-bottom: 1.25rem;
+    line-height: 1.2;
+}
+
+.promptText {
+    font-family: var(--font-body);
+    font-size: 1.05rem;
+    line-height: 1.85;
+    color: rgba(8, 8, 6, 0.8);
+    border-left: 3px solid var(--teal);
+    padding-left: 1.5rem;
+}
+
+/* ─── Essay editor ────────────────────────────────────────────────────────────── */
+
+.editorSection {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.editorHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.6rem;
+}
+
+.editorLabel {
+    font-family: var(--font-display);
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--muted);
+}
+
+.wordCount {
+    font-family: var(--font-body);
+    font-size: 0.8rem;
+    color: var(--muted);
+}
+
+.editor {
+    width: 100%;
+    background: white;
+    border: 1px solid var(--border-dark);
+    padding: 1.5rem;
+    font-family: var(--font-body);
+    font-size: 1rem;
+    color: var(--ink);
+    line-height: 1.8;
+    resize: vertical;
+    min-height: 280px;
+    transition: border-color 0.2s;
+    box-sizing: border-box;
+}
+
+.editor:focus {
+    outline: none;
+    border-color: var(--teal);
+}
+
+.editor:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.editorFooter {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 1rem;
+    gap: 1rem;
+}
+
+.editorHint {
+    font-family: var(--font-body);
+    font-size: 0.82rem;
+    color: var(--muted);
+    line-height: 1.5;
+    max-width: 460px;
+}
+
+.submitBtn {
+    font-family: var(--font-display);
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    background: var(--ink);
+    color: var(--cream);
+    border: none;
+    padding: 0.9rem 2rem;
+    cursor: pointer;
+    transition: background 0.2s;
+    flex-shrink: 0;
+}
+
+.submitBtn:hover:not(:disabled) {
+    background: var(--teal);
+}
+
+.submitBtn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+/* ─── Post-submission feedback ────────────────────────────────────────────────── */
+
+.feedbackPanel {
+    display: flex;
+    flex-direction: column;
+    gap: 2.5rem;
+}
+
+.submittedBanner {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    background: #eef8f7;
+    border: 1px solid #b2d8d4;
+    padding: 1.75rem 2rem;
+}
+
+.submittedIcon {
+    font-size: 1.75rem;
+    color: var(--teal);
+    flex-shrink: 0;
+}
+
+.submittedTitle {
+    font-family: var(--font-display);
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--teal);
+}
+
+.submittedSub {
+    font-family: var(--font-body);
+    font-size: 0.85rem;
+    color: rgba(8, 8, 6, 0.6);
+    margin-top: 0.2rem;
+}
+
+.scoreChip {
+    margin-left: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: white;
+    border: 1px solid var(--border-dark);
+    padding: 0.75rem 1.25rem;
+    flex-shrink: 0;
+}
+
+.scoreChipLabel {
+    font-family: var(--font-display);
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--muted);
+}
+
+.scoreChipValue {
+    font-family: var(--font-display);
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--ink);
+    line-height: 1.1;
+}
+
+/* ─── Socratic section ────────────────────────────────────────────────────────── */
+
+.socraticSection {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    background: white;
+    border: 1px solid var(--border-dark);
+    padding: 2.5rem 3rem;
+}
+
+.socraticHeader {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.socraticTag {
+    font-family: var(--font-display);
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: #7c5cbf;
+    background: #f3eeff;
+    padding: 0.28rem 0.7rem;
+    align-self: flex-start;
+}
+
+.socraticTitle {
+    font-family: var(--font-display);
+    font-size: 1.3rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--ink);
+}
+
+.socraticSubtitle {
+    font-family: var(--font-body);
+    font-size: 0.9rem;
+    color: rgba(8, 8, 6, 0.55);
+    line-height: 1.6;
+}
+
+.challengeLoading {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-family: var(--font-body);
+    font-size: 0.9rem;
+    color: var(--muted);
+    padding: 1rem 0;
+}
+
+.challengeBox {
+    background: #fafaf8;
+    border-left: 3px solid #7c5cbf;
+    padding: 1.25rem 1.5rem;
+}
+
+.challengeText {
+    font-family: var(--font-body);
+    font-size: 1rem;
+    line-height: 1.75;
+    color: var(--ink);
+}
+
+/* ─── Final scores ────────────────────────────────────────────────────────────── */
+
+.finalScores {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.scoreRow {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.25rem;
+    background: #fafaf8;
+    border: 1px solid var(--border-dark);
+}
+
+.ownershipRow {
+    background: #eef8f7;
+    border-color: #b2d8d4;
+}
+
+.scoreRowLabel {
+    font-family: var(--font-display);
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink);
+}
+
+.scoreRowValue {
+    font-family: var(--font-display);
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--teal);
+}
+
+.analysisText {
+    font-family: var(--font-body);
+    font-size: 0.92rem;
+    line-height: 1.7;
+    color: rgba(8, 8, 6, 0.65);
+    padding: 0.5rem 0;
+}
+
+.followupBox {
+    background: #fff8ec;
+    border: 1px solid #f0d98f;
+    padding: 1.25rem 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.followupLabel {
+    font-family: var(--font-display);
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: #b08d00;
+}
+
+.followupText {
+    font-family: var(--font-body);
+    font-size: 0.95rem;
+    line-height: 1.7;
+    color: var(--ink);
+}
+
+/* ─── State boxes (loading / not-distributed) ────────────────────────────────── */
+
+.stateBox {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    padding: 6rem 2rem;
+    text-align: center;
+}
+
+.spinner {
+    width: 28px;
+    height: 28px;
+    border: 2px solid var(--border-dark);
+    border-top-color: var(--teal);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.stateIcon {
+    font-size: 3rem;
+    margin-bottom: 0.5rem;
+}
+
+.stateTitle {
+    font-family: var(--font-display);
+    font-size: 1.4rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--ink);
+}
+
+.stateText {
+    font-family: var(--font-body);
+    font-size: 0.95rem;
+    color: rgba(8, 8, 6, 0.55);
+    max-width: 400px;
+    line-height: 1.7;
+}
+
+.backBtn {
+    font-family: var(--font-display);
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    background: var(--ink);
+    color: var(--cream);
+    border: none;
+    padding: 0.85rem 1.75rem;
+    cursor: pointer;
+    transition: background 0.2s;
+    margin-top: 0.5rem;
+}
+
+.backBtn:hover {
+    background: var(--teal);
+}
+
+/* ─── Responsive ─────────────────────────────────────────────────────────────── */
+
+@media (max-width: 700px) {
+    .topbar {
+        padding: 0.8rem 1.5rem;
+    }
+
+    .content {
+        padding: 2rem 1rem 4rem;
+    }
+
+    .promptCard,
+    .socraticSection {
+        padding: 1.75rem 1.5rem;
+    }
+
+    .submittedBanner {
+        flex-wrap: wrap;
+    }
+
+    .scoreChip {
+        margin-left: 0;
+        width: 100%;
+        align-items: flex-start;
+    }
+
+    .editorFooter {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .submitBtn {
+        width: 100%;
+    }
+}

@@ -1,10 +1,15 @@
+import time
+import logging
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from app.config import settings
 from app.database import init_supabase
 from app.core.exceptions import register_exception_handlers
-from app.routers import auth, assignments, classrooms, students
+from app.routers import auth, assignments, classrooms, students, submissions, socratic, behavior
+
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
@@ -25,14 +30,30 @@ def create_app() -> FastAPI:
         redoc_url=None,
     )
 
+    # --- Performance middleware (order matters: outermost runs first) ---
+
+    # GZip compress all responses > 500 bytes — huge win over port forwarding
+    app.add_middleware(GZipMiddleware, minimum_size=500)
+
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],          # Allow all origins in dev mode
-        allow_credentials=False,       # Must be False when allow_origins=["*"]
+        allow_origins=["*"],
+        allow_credentials=False,
         allow_methods=["*"],
         allow_headers=["*"],
-        max_age=0,                     # Don't cache preflight; avoids stale CORS blocks on restart
+        max_age=3600,                  # Cache preflight for 1h; eliminates double round-trips
     )
+
+    # Request timing — adds Server-Timing header for diagnosing slow endpoints
+    @app.middleware("http")
+    async def add_timing(request: Request, call_next):
+        start = time.perf_counter()
+        response = await call_next(request)
+        elapsed_ms = (time.perf_counter() - start) * 1000
+        response.headers["Server-Timing"] = f"total;dur={elapsed_ms:.1f}"
+        if elapsed_ms > 1000:
+            logger.warning("Slow request: %s %s took %.0fms", request.method, request.url.path, elapsed_ms)
+        return response
 
     register_exception_handlers(app)
 
@@ -40,6 +61,9 @@ def create_app() -> FastAPI:
     app.include_router(assignments.router, prefix="/api/assignments", tags=["Assignments"])
     app.include_router(classrooms.router, prefix="/api/classrooms", tags=["Classrooms"])
     app.include_router(students.router, prefix="/api/student", tags=["Student"])
+    app.include_router(submissions.router, prefix="/api/submissions", tags=["Submissions"])
+    app.include_router(socratic.router, prefix="/api/socratic", tags=["Socratic"])
+    app.include_router(behavior.router, prefix="/api/behavior", tags=["Behavior"])
 
     return app
 

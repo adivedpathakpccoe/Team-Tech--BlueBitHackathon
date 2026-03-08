@@ -257,6 +257,20 @@ export const classroomsApi = {
 
 // ─── Student endpoints ────────────────────────────────────────────────────────
 
+export interface StudentAssignment {
+    id: string
+    classroom_assignment_id: string
+    student_id: string
+    assignment_text: string
+    honeypot_phrase: string | null
+    mode: 'proactive' | 'reactive'
+    topic?: string
+    difficulty?: 'easy' | 'medium' | 'hard'
+    enable_behavioral?: boolean
+    enable_socratic?: boolean
+    created_at?: string
+}
+
 export const studentApi = {
     /** Get all batches the student is enrolled in */
     getMyBatches: (token: string) =>
@@ -265,4 +279,72 @@ export const studentApi = {
     /** Get classroom assignments for a classroom the student is enrolled in */
     getAssignmentsForClassroom: (classroom_id: string, token: string) =>
         apiFetch<Assignment[]>(`/api/student/classrooms/${classroom_id}/assignments`, {}, token),
+
+    /** Get the student's unique distributed variant for a classroom assignment */
+    getMyAssignmentVariant: (classroom_assignment_id: string, token: string) =>
+        apiFetch<StudentAssignment>(`/api/student/assignments/${classroom_assignment_id}`, {}, token),
+}
+
+// ─── Submissions endpoints ────────────────────────────────────────────────────
+
+export interface SubmissionResult {
+    id: string
+    student_id: string
+    assignment_id: string
+    essay_text: string
+    honeypot_score: number | null
+}
+
+export interface BehaviorLog {
+    submission_id: string
+    typing_events: Array<{ t: number; type: string }>
+    paste_events: Array<{ t: number; len: number }>
+    largest_paste: number
+    tab_switches: number
+    idle_time: number
+}
+
+export const submissionsApi = {
+    /** Submit an essay for an assignment */
+    create: (payload: { assignment_id: string; essay_text: string }, token: string) =>
+        apiFetch<SubmissionResult>('/api/submissions/', {
+            method: 'POST',
+            body: JSON.stringify(payload),
+        }, token),
+
+    /** Log behavioral telemetry for a submission */
+    logBehavior: (payload: BehaviorLog, token: string) =>
+        apiFetch('/api/behavior/log', {
+            method: 'POST',
+            body: JSON.stringify(payload),
+        }, token),
+}
+
+// ─── Socratic endpoints ───────────────────────────────────────────────────────
+
+export interface SocraticChallenge {
+    submission_id: string
+    challenge: string
+}
+
+export interface SocraticScoreResult {
+    socratic_score: number
+    ownership_score: number
+    analysis: string
+    followup: string | null
+}
+
+export const socraticApi = {
+    /** Generate a Socratic challenge question from a submission */
+    getChallenge: (submission_id: string, token: string) =>
+        apiFetch<SocraticChallenge>(`/api/socratic/challenge?submission_id=${submission_id}`, {
+            method: 'POST',
+        }, token, 60_000),
+
+    /** Score the student's Socratic response */
+    scoreResponse: (payload: { submission_id: string; student_response: string }, token: string) =>
+        apiFetch<SocraticScoreResult>('/api/socratic/score', {
+            method: 'POST',
+            body: JSON.stringify(payload),
+        }, token, 60_000),
 }
