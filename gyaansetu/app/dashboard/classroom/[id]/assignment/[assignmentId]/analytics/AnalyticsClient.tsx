@@ -131,7 +131,7 @@ export default function AnalyticsClient({ classroomId, assignmentId, token }: An
                                                 <span>{sub.profiles?.full_name || 'Unknown Student'}</span>
                                             </div>
                                         </td>
-                                        <td>{new Date(sub.submitted_at).toLocaleDateString()}</td>
+                                        <td>{new Date(sub.submitted_at || sub.created_at).toLocaleDateString()}</td>
                                         <td>
                                             <div className={`${styles.scoreTag} ${(sub.scores?.honeypot_score ?? 10) > 7 ? styles.scoreGreen : styles.scoreRed
                                                 }`}>
@@ -171,7 +171,7 @@ export default function AnalyticsClient({ classroomId, assignmentId, token }: An
                                         {selectedSubmission.profiles?.full_name}'s Session
                                     </h3>
                                     <div className={styles.replayMeta}>
-                                        ID: {selectedSubmission.id.slice(0, 8)} • {new Date(selectedSubmission.submitted_at).toLocaleString()}
+                                        ID: {selectedSubmission.id.slice(0, 8)} • {new Date(selectedSubmission.submitted_at || selectedSubmission.created_at).toLocaleString()}
                                     </div>
                                 </div>
                                 <div className={styles.replayStats}>

@@ -66,12 +66,11 @@ export default function StudentSection({ token, initialBatches }: { token: strin
     }, [token])
 
     useEffect(() => {
-        if (!initialBatches || initialBatches.length === 0) {
-            fetchMyBatches()
-        } else {
-            setIsLoading(false)
-        }
-    }, [fetchMyBatches, initialBatches])
+        // Always re-fetch from the API on mount so we have fresh data regardless
+        // of whether the server-side prop was populated.  The initialBatches prop
+        // is only used as the initial state to avoid the loading flicker.
+        fetchMyBatches()
+    }, [fetchMyBatches])
 
     // ── Fetch assignments for a batch when expanded ─────────────────────────
 

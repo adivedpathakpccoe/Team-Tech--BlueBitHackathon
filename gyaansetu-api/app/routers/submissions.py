@@ -58,26 +58,49 @@ async def list_my_submissions(
 async def list_assignment_submissions(
     assignment_id: UUID, current_user: CurrentUserDep, db: DbDep
 ):
-    """Return all submissions for a specific assignment (teacher view)."""
-    # In a real app, verify current_user is the owner of the classroom
-    # For now, we fetch all submissions for this assignment with student info
-    res = await db.table("submissions") \
-        .select("*") \
-        .eq("assignment_id", str(assignment_id)) \
-        .order("created_at", desc=True) \
+    """Return all submissions for a specific assignment (teacher view).
+
+    The ``assignment_id`` can be either:
+      • a classroom_assignment ID (template) — we look up all per-student
+        variants first, then fetch their submissions, OR
+      • a direct per-student assignment ID.
+    """
+    # 1. Try to find per-student variant IDs linked to this classroom assignment
+    variants_res = await db.table("assignments") \
+        .select("id") \
+        .eq("classroom_assignment_id", str(assignment_id)) \
         .execute()
+
+    variant_ids = [v["id"] for v in (variants_res.data or [])]
+
+    # 2. Fetch submissions — match against variant IDs if any were found,
+    #    otherwise fall back to treating assignment_id as a direct match.
+    if variant_ids:
+        res = await db.table("submissions") \
+            .select("*") \
+            .in_("assignment_id", variant_ids) \
+            .order("created_at", desc=True) \
+            .execute()
+    else:
+        res = await db.table("submissions") \
+            .select("*") \
+            .eq("assignment_id", str(assignment_id)) \
+            .order("created_at", desc=True) \
+            .execute()
 
     submissions = res.data or []
 
-    # Collect unique student IDs and fetch their profiles in one query
+    # Collect unique student IDs and resolve names from Supabase Auth metadata
     student_ids = list({sub["student_id"] for sub in submissions if sub.get("student_id")})
     profiles_map: dict = {}
-    if student_ids:
-        profiles_res = await db.table("profiles") \
-            .select("id, full_name") \
-            .in_("id", student_ids) \
-            .execute()
-        profiles_map = {p["id"]: p for p in (profiles_res.data or [])}
+    for sid in student_ids:
+        try:
+            user_res = await db.auth.admin.get_user_by_id(sid)
+            if user_res and user_res.user:
+                name = (user_res.user.user_metadata or {}).get("name")
+                profiles_map[sid] = {"full_name": name}
+        except Exception:
+            profiles_map[sid] = {"full_name": None}
 
     # Also fetch scores for each submission
     for sub in submissions:

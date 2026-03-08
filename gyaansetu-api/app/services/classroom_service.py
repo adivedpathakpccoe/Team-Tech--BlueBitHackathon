@@ -178,74 +178,136 @@ class ClassroomService(BaseService):
         return {"membership": res.data[0], "batch": batch}
 
     async def get_enrolled_batches(self, student_id: UUID) -> list:
-        """Return all batches a student is enrolled in, with classroom info."""
-        res = await (
-            self.db.table("batch_members")
-            .select("batch_id, batches(id, name, classroom_id, classrooms(id, name))")
-            .eq("student_id", str(student_id))
-            .execute()
-        )
-        result = []
-        for m in (res.data or []):
-            batch = m.get("batches")
-            if not batch:
-                continue
-            classroom = batch.get("classrooms")
-            if not classroom:
-                continue
-            result.append({
-                "batch_id": batch["id"],
-                "batch_name": batch["name"],
-                "classroom_id": classroom["id"],
-                "classroom_name": classroom["name"],
-            })
-        return result
+        """Return all batches a student is enrolled in, with classroom info.
 
-    async def get_classroom_assignments_for_student(self, student_id: UUID, classroom_id: UUID) -> list:
-        """Return classroom assignments for a student, filtered by their batch(es)."""
-        # 1. Find all batches the student is in *within this specific classroom*
+        Uses flat queries instead of nested PostgREST joins to avoid
+        intermittent 500s caused by PostgREST schema-cache refreshes.
+        """
+        # 1. Student's batch memberships
         membership_res = await (
             self.db.table("batch_members")
-            .select("batch_id, batches(classroom_id)")
+            .select("batch_id")
             .eq("student_id", str(student_id))
             .execute()
         )
-        
-        # All batches the student is enrolled in for this classroom
-        my_batch_ids = {
-            m["batch_id"]
-            for m in (membership_res.data or [])
-            if m.get("batches") and m["batches"].get("classroom_id") == str(classroom_id)
-        }
+        if not membership_res.data:
+            return []
+
+        batch_ids = [m["batch_id"] for m in membership_res.data]
+
+        # 2. Fetch batch rows (id, name, classroom_id) — no nested join
+        batches_res = await (
+            self.db.table("batches")
+            .select("id, name, classroom_id")
+            .in_("id", batch_ids)
+            .execute()
+        )
+        if not batches_res.data:
+            return []
+
+        # 3. Fetch classroom names in one shot
+        classroom_ids = list({b["classroom_id"] for b in batches_res.data})
+        classrooms_res = await (
+            self.db.table("classrooms")
+            .select("id, name")
+            .in_("id", classroom_ids)
+            .execute()
+        )
+        classroom_map = {c["id"]: c["name"] for c in (classrooms_res.data or [])}
+
+        return [
+            {
+                "batch_id": b["id"],
+                "batch_name": b["name"],
+                "classroom_id": b["classroom_id"],
+                "classroom_name": classroom_map.get(b["classroom_id"], ""),
+            }
+            for b in batches_res.data
+        ]
+
+    async def get_classroom_assignments_for_student(self, student_id: UUID, classroom_id: UUID) -> list:
+        """Return classroom assignments visible to a student, including submitted status.
+
+        Uses flat queries instead of nested PostgREST joins. Returns an empty
+        list (never raises ForbiddenError) so the frontend always gets clean data.
+        """
+        # 1. Student's batch memberships (all classrooms)
+        membership_res = await (
+            self.db.table("batch_members")
+            .select("batch_id")
+            .eq("student_id", str(student_id))
+            .execute()
+        )
+        if not membership_res.data:
+            return []
+
+        all_my_batch_ids = {m["batch_id"] for m in membership_res.data}
+
+        # 2. Narrow to batches that belong to THIS classroom
+        classroom_batches_res = await (
+            self.db.table("batches")
+            .select("id")
+            .eq("classroom_id", str(classroom_id))
+            .in_("id", list(all_my_batch_ids))
+            .execute()
+        )
+        my_batch_ids = {b["id"] for b in (classroom_batches_res.data or [])}
 
         if not my_batch_ids:
-            raise ForbiddenError("Not enrolled in any batch in this classroom")
+            return []
 
-        # 2. Fetch all assignments for this classroom
-        # NOTE: In a real app with 1000s of assignments, we'd use array_overlap filter in Supabase.
-        # For this hackathon, we fetch all for classroom and filter in Python for simplicity.
-        res = await (
+        # 3. All assignments for this classroom
+        assignments_res = await (
             self.db.table("classroom_assignments")
             .select("*")
             .eq("classroom_id", str(classroom_id))
             .order("created_at", desc=True)
             .execute()
         )
-        
+
+        # 4. Filter: batch_ids null/empty → visible to all; otherwise must overlap
         filtered = []
-        for ca in (res.data or []):
+        for ca in (assignments_res.data or []):
             ca_batch_ids = ca.get("batch_ids")
-            # Logic: If batch_ids is null or empty, it's a global courtroom assignment
-            # (or we can decide it's legacy).
-            # The user says "let the teacher select which batches to send the assignment to".
-            # So we only show if my_batch_ids overlaps with ca_batch_ids.
             if not ca_batch_ids:
-                # If no specific batches are set, we treat it as visible to all (fallback)
                 filtered.append(ca)
-            else:
-                # Check if student is in any of the allowed batches
-                if any(bid in my_batch_ids for bid in ca_batch_ids):
-                    filtered.append(ca)
+            elif any(str(bid) in my_batch_ids for bid in ca_batch_ids):
+                filtered.append(ca)
+
+        if not filtered:
+            return []
+
+        # 5. Compute submitted status so the student knows what they've already done
+        ca_ids = [str(ca["id"]) for ca in filtered]
+        variants_res = await (
+            self.db.table("assignments")
+            .select("id, classroom_assignment_id")
+            .eq("student_id", str(student_id))
+            .in_("classroom_assignment_id", ca_ids)
+            .execute()
+        )
+        variant_map = {
+            v["classroom_assignment_id"]: v["id"]
+            for v in (variants_res.data or [])
+        }
+
+        submitted_ca_ids: set = set()
+        if variant_map:
+            subs_res = await (
+                self.db.table("submissions")
+                .select("assignment_id")
+                .in_("assignment_id", list(variant_map.values()))
+                .execute()
+            )
+            submitted_variant_ids = {s["assignment_id"] for s in (subs_res.data or [])}
+            submitted_ca_ids = {
+                ca_id
+                for ca_id, variant_id in variant_map.items()
+                if variant_id in submitted_variant_ids
+            }
+
+        for ca in filtered:
+            ca["submitted"] = ca["id"] in submitted_ca_ids
 
         return filtered
 

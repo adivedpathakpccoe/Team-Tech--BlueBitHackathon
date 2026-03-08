@@ -121,7 +121,7 @@ async def create_classroom_assignment(
     classroom_id: UUID, body: ClassroomAssignmentCreate, _: TeacherDep, svc: AssignmentServiceDep
 ):
     """Create a new assignment template for the classroom."""
-    result = await svc.create_classroom_assignment(classroom_id, body.model_dump())
+    result = await svc.create_classroom_assignment(classroom_id, body.model_dump(mode='json'))
     return ok(data=result, message="Assignment created")
 
 
@@ -143,7 +143,7 @@ async def update_classroom_assignment(
     svc: AssignmentServiceDep,
 ):
     """Partially update an existing classroom assignment."""
-    update_data = body.model_dump(exclude_none=True)
+    update_data = body.model_dump(mode='json', exclude_none=True)
     result = await svc.update_classroom_assignment(assignment_id, update_data)
     return ok(data=result, message="Assignment updated")
 
