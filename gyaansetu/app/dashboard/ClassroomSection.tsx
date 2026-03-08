@@ -20,6 +20,8 @@ export default function ClassroomSection({ token }: { token: string }) {
     const [description, setDescription] = useState('')
     const [isLoading, setIsLoading] = useState(true)
     const [isSubmitting, setIsSubmitting] = useState(false)
+    const [deletingId, setDeletingId] = useState<string | null>(null)
+    const [confirmDelete, setConfirmDelete] = useState<Classroom | null>(null)
     const router = useRouter()
 
     useEffect(() => {
@@ -62,6 +64,22 @@ export default function ClassroomSection({ token }: { token: string }) {
         }
     }
 
+    const handleDeleteConfirm = async () => {
+        if (!confirmDelete) return
+
+        setDeletingId(confirmDelete.id)
+        setConfirmDelete(null)
+        try {
+            await classroomsApi.delete(confirmDelete.id, token)
+            toast.success('Classroom deleted')
+            setClassrooms((prev) => prev.filter((c) => c.id !== confirmDelete.id))
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : 'Failed to delete classroom')
+        } finally {
+            setDeletingId(null)
+        }
+    }
+
     return (
         <section className={styles.classroomSection}>
             <div className={styles.sectionHeader}>
@@ -94,6 +112,21 @@ export default function ClassroomSection({ token }: { token: string }) {
                             <p className={styles.cardDesc}>
                                 {cls.description || 'No description provided.'}
                             </p>
+                            <div className={styles.cardActions}>
+                                <button
+                                    className={styles.viewBtn}
+                                    onClick={(e) => { e.stopPropagation(); router.push(`/dashboard/classroom/${cls.id}`) }}
+                                >
+                                    View →
+                                </button>
+                                <button
+                                    className={styles.deleteBtn}
+                                    onClick={(e) => { e.stopPropagation(); setConfirmDelete(cls) }}
+                                    disabled={deletingId === cls.id}
+                                >
+                                    {deletingId === cls.id ? 'Deleting...' : 'Delete'}
+                                </button>
+                            </div>
                         </div>
                     ))
                 ) : (
@@ -103,6 +136,7 @@ export default function ClassroomSection({ token }: { token: string }) {
                 )}
             </div>
 
+            {/* Create Classroom Modal */}
             {isModalOpen && (
                 <div className={styles.modalOverlay} onClick={() => setIsModalOpen(false)}>
                     <div
@@ -150,6 +184,40 @@ export default function ClassroomSection({ token }: { token: string }) {
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Delete Confirmation Modal */}
+            {confirmDelete && (
+                <div className={styles.modalOverlay} onClick={() => setConfirmDelete(null)}>
+                    <div
+                        className={styles.modal}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className={styles.deleteModalIcon}>⚠</div>
+                        <h3 className={styles.modalTitle}>Delete Classroom</h3>
+                        <p className={styles.deleteModalBody}>
+                            You are about to permanently delete{' '}
+                            <strong>{confirmDelete.name}</strong>. All batches and associated
+                            data will be lost. This action cannot be undone.
+                        </p>
+                        <div className={styles.modalActions}>
+                            <button
+                                type="button"
+                                className={styles.cancelBtn}
+                                onClick={() => setConfirmDelete(null)}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                className={styles.deletConfirmBtn}
+                                onClick={handleDeleteConfirm}
+                            >
+                                Yes, Delete
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

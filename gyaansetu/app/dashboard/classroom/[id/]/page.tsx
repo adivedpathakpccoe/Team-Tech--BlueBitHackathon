@@ -21,7 +21,7 @@ export default async function ClassroomPage({ params }: ClassroomPageProps) {
     let classroom = null
     try {
         const res = await classroomsApi.get(classroomId, token)
-        if (res.success) {
+        if (res.ok) {
             classroom = res.data as any
         }
     } catch (error) {

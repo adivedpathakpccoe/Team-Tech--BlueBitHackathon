@@ -172,4 +172,8 @@ export const classroomsApi = {
     /** List members of a batch (teacher) */
     batchMembers: (batch_id: string, token: string) =>
         apiFetch(`/api/classrooms/batches/${batch_id}/members`, {}, token),
+
+    /** Delete a classroom */
+    delete: (classroom_id: string, token: string) =>
+        apiFetch(`/api/classrooms/${classroom_id}`, { method: 'DELETE' }, token),
 }
