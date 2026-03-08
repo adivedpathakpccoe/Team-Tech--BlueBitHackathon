@@ -71,7 +71,9 @@ export default async function DashboardPage() {
                         : 'Your student workspace is ready. Access your assignments and track your submission status.'}
                 </p>
 
-                <div className={styles.cards}>
+                {isTeacher && <ClassroomSection token={token} />}
+
+                <div className={`${styles.cards} ${styles.quickCards}`}>
                     {quickCards.map((c, i) => (
                         <div key={i} className={styles.card}>
                             <span className={`${styles.cardTag} ${styles[`cardTag${c.type}`]}`}>
@@ -82,8 +84,6 @@ export default async function DashboardPage() {
                         </div>
                     ))}
                 </div>
-
-                {isTeacher && <ClassroomSection token={token} />}
 
                 <div className={styles.status}>
                     <span className={styles.statusDot} />

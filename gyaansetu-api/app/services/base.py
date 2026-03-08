@@ -34,12 +34,12 @@ class BaseService(Generic[ModelT]):
 
     async def create(self, payload: dict) -> dict:
         """Insert a new row and return the created record."""
-        res = await self.db.table(self.table).insert(payload).select().execute()
+        res = await self.db.table(self.table).insert(payload).execute()
         return res.data[0]
 
     async def update(self, id: UUID | str, payload: dict) -> dict:
         """Partially update a row by primary key and return the updated record."""
-        res = await self.db.table(self.table).update(payload).eq("id", str(id)).select().execute()
+        res = await self.db.table(self.table).update(payload).eq("id", str(id)).execute()
         if not res.data:
             raise NotFoundError(self.table, id)
         return res.data[0]

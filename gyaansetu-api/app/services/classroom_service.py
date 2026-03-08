@@ -30,7 +30,7 @@ class ClassroomService(BaseService):
     async def create_classroom(self, teacher_id: UUID, data: ClassroomCreate) -> dict:
         """Create a classroom and auto-create a 'General' batch inside it."""
         if await self.exists(teacher_id=str(teacher_id), name=data.name):
-            raise ConflictError("classrooms", f"Classroom '{data.name}' already exists")
+            raise ConflictError(f"Classroom '{data.name}' already exists")
 
         classroom = await self.create({
             "teacher_id": str(teacher_id),
@@ -83,7 +83,7 @@ class ClassroomService(BaseService):
             .execute()
         )
         if (duplicate.count or 0) > 0:
-            raise ConflictError("batches", f"Batch '{data.name}' already exists in this classroom")
+            raise ConflictError(f"Batch '{data.name}' already exists in this classroom")
 
         return await self._create_batch_record(
             classroom_id=str(classroom_id),
@@ -126,9 +126,7 @@ class ClassroomService(BaseService):
                         "name": name,
                         "description": description,
                         "join_code": code,
-                    })
-                    .select()
-                    .execute()
+                    })                    .execute()
                 )
                 return res.data[0]
         raise RuntimeError("Failed to generate a unique join code after 5 attempts")
@@ -158,12 +156,11 @@ class ClassroomService(BaseService):
             .execute()
         )
         if (already.count or 0) > 0:
-            raise ConflictError("batch_members", "You have already joined this batch")
+            raise ConflictError("You have already joined this batch")
 
         res = await (
             self.db.table("batch_members")
             .insert({"batch_id": batch["id"], "student_id": str(student_id)})
-            .select()
             .execute()
         )
         return {"membership": res.data[0], "batch": batch}

@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import './globals.css'
 import { oswald, courierPrime, playfairDisplay } from './fonts'
+import { Toaster } from 'sonner'
 
 export const metadata: Metadata = {
   title: 'GYAANSETU — Academic Integrity Intelligence',
@@ -18,7 +19,10 @@ export default function RootLayout({
       lang="en"
       className={`${oswald.variable} ${courierPrime.variable} ${playfairDisplay.variable}`}
     >
-      <body>{children}</body>
+      <body>
+        {children}
+        <Toaster position="top-right" richColors />
+      </body>
     </html>
   )
 }

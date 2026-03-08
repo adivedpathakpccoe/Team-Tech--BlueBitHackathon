@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { classroomsApi } from '@/lib/api'
 import styles from './dashboard.module.css'
+import { toast } from 'sonner'
 
 interface Classroom {
     id: string
@@ -28,11 +29,12 @@ export default function ClassroomSection({ token }: { token: string }) {
     const fetchClassrooms = async () => {
         try {
             const res = await classroomsApi.list(token)
-            if (res.success && Array.isArray(res.data)) {
+            if (res.ok && Array.isArray(res.data)) {
                 setClassrooms(res.data)
             }
         } catch (error) {
             console.error('Failed to fetch classrooms:', error)
+            toast.error('Failed to load classrooms')
         } finally {
             setIsLoading(false)
         }
@@ -45,15 +47,16 @@ export default function ClassroomSection({ token }: { token: string }) {
         setIsSubmitting(true)
         try {
             const res = await classroomsApi.create({ name, description }, token)
-            if (res.success) {
+            if (res.ok) {
                 setName('')
                 setDescription('')
                 setIsModalOpen(false)
+                toast.success('Classroom created successfully')
                 fetchClassrooms()
             }
         } catch (error) {
             console.error('Failed to create classroom:', error)
-            alert('Error creating classroom. Please try again.')
+            toast.error(error instanceof Error ? error.message : 'Error creating classroom')
         } finally {
             setIsSubmitting(false)
         }
@@ -81,9 +84,12 @@ export default function ClassroomSection({ token }: { token: string }) {
                             className={`${styles.card} ${styles.classroomCard}`}
                             onClick={() => router.push(`/dashboard/classroom/${cls.id}`)}
                         >
-                            <span className={`${styles.cardTag} ${styles.cardTagPrimary}`}>
-                                Classroom
-                            </span>
+                            <div className={styles.cardTopRow}>
+                                <span className={`${styles.cardTag} ${styles.cardTagPrimary}`}>
+                                    Classroom
+                                </span>
+                                <span className={styles.classroomId}>{cls.id.slice(0, 8).toUpperCase()}</span>
+                            </div>
                             <div className={styles.cardTitle}>{cls.name}</div>
                             <p className={styles.cardDesc}>
                                 {cls.description || 'No description provided.'}

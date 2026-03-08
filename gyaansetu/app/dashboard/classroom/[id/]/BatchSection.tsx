@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { classroomsApi } from '@/lib/api'
 import styles from './classroom.module.css'
+import { toast } from 'sonner'
 
 interface Batch {
     id: string
@@ -27,11 +28,12 @@ export default function BatchSection({ classroomId, token }: { classroomId: stri
     const fetchBatches = async () => {
         try {
             const res = await classroomsApi.listBatches(classroomId, token)
-            if (res.success && Array.isArray(res.data)) {
+            if (res.ok && Array.isArray(res.data)) {
                 setBatches(res.data)
             }
         } catch (error) {
             console.error('Failed to fetch batches:', error)
+            toast.error('Failed to load batches')
         } finally {
             setIsLoading(false)
         }
@@ -44,15 +46,16 @@ export default function BatchSection({ classroomId, token }: { classroomId: stri
         setIsSubmitting(true)
         try {
             const res = await classroomsApi.createBatch(classroomId, { name, description }, token)
-            if (res.success) {
+            if (res.ok) {
                 setName('')
                 setDescription('')
                 setIsModalOpen(false)
+                toast.success('Batch created successfully')
                 fetchBatches()
             }
         } catch (error) {
             console.error('Failed to create batch:', error)
-            alert('Error creating batch. Please try again.')
+            toast.error(error instanceof Error ? error.message : 'Error creating batch')
         } finally {
             setIsSubmitting(false)
         }

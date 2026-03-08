@@ -8,8 +8,8 @@ const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'https://rg89c906-8000.inc1.
 // ─── Response types ──────────────────────────────────────────────────────────
 
 export interface ApiResponse<T = unknown> {
-    success: boolean
-    message: string
+    ok: boolean
+    message: string | null
     data?: T
 }
 

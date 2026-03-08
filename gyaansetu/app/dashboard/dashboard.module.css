@@ -403,3 +403,20 @@
 .classroomCard {
     cursor: pointer;
 }
+
+.classroomId {
+    font-family: var(--font-body);
+    font-size: 0.72rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--ink);
+    background: #e8f4f3;
+    border: 1px solid #b2d8d4;
+    display: inline-block;
+    padding: 0.2rem 0.55rem;
+    margin-bottom: 0.75rem;
+}
+
+.quickCards {
+    margin-top: 4rem;
+}
