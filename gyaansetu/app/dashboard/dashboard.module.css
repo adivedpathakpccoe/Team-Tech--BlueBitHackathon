@@ -537,3 +537,202 @@
 .deletConfirmBtn:hover {
     opacity: 0.85;
 }
+
+/* ─── Student Section ─── */
+
+.studentBatchList {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.studentBatchCard {
+    background: white;
+    border: 1px solid var(--border-dark);
+    box-shadow: 0 2px 8px rgba(8, 8, 6, 0.04);
+    transition: box-shadow 0.25s ease;
+    overflow: hidden;
+}
+
+.studentBatchCard:hover {
+    box-shadow: 0 6px 18px rgba(8, 8, 6, 0.08);
+}
+
+.studentBatchHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.5rem 2rem;
+    cursor: pointer;
+    user-select: none;
+}
+
+.studentBatchMeta {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+}
+
+.studentBatchMeta .cardTag {
+    margin-bottom: 0;
+    flex-shrink: 0;
+}
+
+.studentBatchName {
+    font-family: var(--font-display);
+    font-size: 1.1rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--ink);
+    margin-bottom: 0.2rem;
+}
+
+.studentClassroomLabel {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-family: var(--font-body);
+    font-size: 0.82rem;
+    color: var(--muted);
+    letter-spacing: 0.05em;
+}
+
+.studentClassroomIcon {
+    font-size: 0.9rem;
+}
+
+.studentBatchRight {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-shrink: 0;
+}
+
+.studentJoinedBadge {
+    font-family: var(--font-display);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: #1a8c82;
+    background: #e8f4f3;
+    border: 1px solid #b2d8d4;
+    padding: 0.3rem 0.7rem;
+}
+
+.expandChevron {
+    font-size: 0.7rem;
+    color: var(--muted);
+    transition: transform 0.2s;
+}
+
+/* Assignments accordion */
+
+.assignmentsAccordion {
+    border-top: 1px solid var(--border-dark);
+    padding: 1.75rem 2rem;
+    background: #fafaf8;
+}
+
+.assignmentsHeader {
+    font-family: var(--font-display);
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 1.25rem;
+}
+
+.assignmentLoading,
+.assignmentEmpty {
+    font-family: var(--font-body);
+    font-size: 0.9rem;
+    color: var(--muted);
+    text-align: center;
+    padding: 2rem 0;
+}
+
+.assignmentGrid {
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+}
+
+.assignmentRow {
+    background: white;
+    border: 1px solid var(--border-dark);
+    padding: 1.1rem 1.4rem;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 0.75rem;
+    transition: border-color 0.2s;
+}
+
+.assignmentRow:hover {
+    border-color: var(--teal);
+}
+
+.assignmentTopic {
+    font-family: var(--font-display);
+    font-size: 1rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: var(--ink);
+    flex: 1;
+    min-width: 180px;
+}
+
+.assignmentBadges {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.diffBadge,
+.modeBadge {
+    font-family: var(--font-display);
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    padding: 0.25rem 0.65rem;
+}
+
+.diffEasy   { color: #2e7d32; background: #e8f5e9; }
+.diffMedium { color: #b08d00; background: #fffcf0; }
+.diffHard   { color: #c0392b; background: #fef1f0; }
+
+.modeBadge {
+    color: #555;
+    background: #f0f0ec;
+}
+
+.assignmentDesc {
+    width: 100%;
+    font-family: var(--font-body);
+    font-size: 0.88rem;
+    color: rgba(8, 8, 6, 0.6);
+    line-height: 1.6;
+    margin-top: 0.25rem;
+}
+
+/* Inline join prompt */
+
+.inlineJoinBtn {
+    background: none;
+    border: none;
+    color: var(--teal);
+    font-family: var(--font-body);
+    font-size: inherit;
+    cursor: pointer;
+    text-decoration: underline;
+    padding: 0;
+}
+
+.inlineJoinBtn:hover {
+    color: var(--ink);
+}

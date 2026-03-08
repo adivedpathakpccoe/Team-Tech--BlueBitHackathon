@@ -4,6 +4,7 @@ import { logout } from '@/app/auth/actions'
 import { authApi, type AuthUser } from '@/lib/api'
 import styles from './dashboard.module.css'
 import ClassroomSection from './ClassroomSection'
+import StudentSection from './StudentSection'
 
 export default async function DashboardPage() {
     const cookieStore = await cookies()
@@ -71,7 +72,11 @@ export default async function DashboardPage() {
                         : 'Your student workspace is ready. Access your assignments and track your submission status.'}
                 </p>
 
-                {isTeacher && <ClassroomSection token={token} />}
+                {isTeacher ? (
+                    <ClassroomSection token={token} />
+                ) : (
+                    <StudentSection token={token} />
+                )}
 
                 <div className={`${styles.cards} ${styles.quickCards}`}>
                     {quickCards.map((c, i) => (
