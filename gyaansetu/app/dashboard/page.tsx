@@ -3,6 +3,7 @@ import { cookies } from 'next/headers'
 import { logout } from '@/app/auth/actions'
 import { authApi, type AuthUser } from '@/lib/api'
 import styles from './dashboard.module.css'
+import ClassroomSection from './ClassroomSection'
 
 export default async function DashboardPage() {
     const cookieStore = await cookies()
@@ -27,18 +28,18 @@ export default async function DashboardPage() {
 
     const quickCards = isTeacher
         ? [
-            { tag: 'Module Alpha', title: 'Create Assignment', desc: 'Configure a new assignment with Proactive or Reactive detection mode and inject honeypot traps.' },
-            { tag: 'Module Beta', title: 'Review Submissions', desc: 'Analyze student submissions with behavioral scores, honeypot flags, and Socratic challenge results.' },
-            { tag: 'Module Gamma', title: 'Integrity Dashboard', desc: 'Monitor ownership scores, risk levels, and evidence chains across all enrolled students.' },
+            { tag: 'Action', title: 'Create Assignment', desc: 'Configure a new assignment with Proactive or Reactive detection mode.', type: 'Primary' },
+            { tag: 'Review', title: 'Review Submissions', desc: 'Analyze student submissions with behavioral scores and honeypot flags.', type: 'Activity' },
+            { tag: 'Insights', title: 'Integrity Dashboard', desc: 'Monitor ownership scores, risk levels, and evidence chains.', type: 'Strategy' },
         ]
         : [
-            { tag: 'Module Alpha', title: 'My Assignments', desc: 'View active assignments in your enrolled courses. Submit work through the secure writing platform.' },
-            { tag: 'Module Beta', title: 'Submit Work', desc: 'Upload a document or write directly in the monitored editor for your current assignment.' },
-            { tag: 'Module Gamma', title: 'My Results', desc: 'Review feedback and ownership scores for your past submissions.' },
+            { tag: 'Access', title: 'My Assignments', desc: 'View active assignments in your enrolled courses.', type: 'Primary' },
+            { tag: 'Action', title: 'Submit Work', desc: 'Upload a document or write directly in the monitored editor.', type: 'Activity' },
+            { tag: 'Stats', title: 'My Results', desc: 'Review feedback and ownership scores for your past submissions.', type: 'Strategy' },
         ]
 
     return (
-        <div className={styles.page}>
+        <div className={`${styles.page} soberDashboard`}>
             {/* Topbar */}
             <div className={styles.topbar}>
                 <div className={styles.dashBrand}>
@@ -47,40 +48,45 @@ export default async function DashboardPage() {
                 <div className={styles.userInfo}>
                     <div className={styles.userMeta}>
                         <div className={styles.userName}>{name}</div>
-                        <div className={styles.userRole}>// {isTeacher ? 'Educator' : 'Student'} — Clearance Active</div>
+                        <div className={styles.userRole}>{isTeacher ? 'Professor' : 'Student'} — Active Session</div>
                     </div>
                     <form action={logout}>
-                        <button type="submit" className={styles.logoutBtn}>Log Out</button>
+                        <button type="submit" className={styles.logoutBtn}>Sign Out</button>
                     </form>
                 </div>
             </div>
 
             {/* Content */}
             <div className={styles.content}>
-                <div className={styles.greeting}>// Intelligence Briefing — Operational Status</div>
+                <div className={styles.greeting}>Institutional Overview</div>
+
                 <h1 className={styles.title}>
                     Welcome,<br />
                     <span className={styles.titleAccent}>{name}.</span>
                 </h1>
                 <p className={styles.desc}>
                     {isTeacher
-                        ? 'Your educator dashboard is active. Create assignments, monitor submissions, and access integrity intelligence reports from here.'
-                        : 'Your student workspace is ready. View your assignments, submit work, and track your verification results from here.'}
+                        ? 'Your educator workspace is active. Manage your courses, monitor submission integrity, and generate detailed reports from this central console.'
+                        : 'Your student workspace is ready. Access your assignments and track your submission status.'}
                 </p>
 
                 <div className={styles.cards}>
                     {quickCards.map((c, i) => (
                         <div key={i} className={styles.card}>
-                            <span className={styles.cardTag}>{c.tag}</span>
+                            <span className={`${styles.cardTag} ${styles[`cardTag${c.type}`]}`}>
+                                {c.tag}
+                            </span>
                             <div className={styles.cardTitle}>{c.title}</div>
                             <p className={styles.cardDesc}>{c.desc}</p>
                         </div>
                     ))}
                 </div>
 
+                {isTeacher && <ClassroomSection token={token} />}
+
                 <div className={styles.status}>
                     <span className={styles.statusDot} />
-                    System Operational — Session Authenticated
+                    Integrity Network: Online — All systems operational.
                 </div>
             </div>
         </div>

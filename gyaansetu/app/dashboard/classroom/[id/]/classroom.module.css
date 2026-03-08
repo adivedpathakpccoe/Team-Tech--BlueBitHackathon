@@ -1,0 +1,274 @@
+.page {
+    min-height: 100vh;
+    background: var(--cream);
+    color: var(--ink);
+}
+
+.topbar {
+    border-bottom: 1px solid var(--border-dark);
+    padding: 1rem 4rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--ink);
+    color: var(--cream);
+}
+
+.dashBrand {
+    font-family: var(--font-display);
+    font-size: 1.1rem;
+    font-weight: 700;
+    letter-spacing: 0.35em;
+    text-transform: uppercase;
+    color: var(--cream);
+    cursor: pointer;
+}
+
+.dashBrandAccent {
+    color: var(--red);
+}
+
+.userInfo {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+}
+
+.content {
+    padding: 4rem 4rem;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.backLink {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-family: var(--font-display);
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    margin-bottom: 2rem;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.backLink:hover {
+    color: var(--teal);
+}
+
+.classroomHeader {
+    margin-bottom: 4rem;
+}
+
+.title {
+    font-family: var(--font-display);
+    font-size: 3rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--ink);
+    line-height: 1.1;
+    margin-bottom: 1rem;
+}
+
+.desc {
+    font-family: var(--font-body);
+    font-size: 1.1rem;
+    color: rgba(8, 8, 6, 0.6);
+    line-height: 1.6;
+    border-left: 3px solid var(--teal);
+    padding-left: 1.5rem;
+}
+
+.sectionHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid var(--ink);
+}
+
+.sectionTitle {
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--ink);
+    letter-spacing: 0.1em;
+}
+
+.createBtn {
+    font-family: var(--font-display);
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    background: var(--ink);
+    color: var(--cream);
+    padding: 0.6rem 1.2rem;
+    cursor: pointer;
+}
+
+.batchGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1.5rem;
+}
+
+.batchCard {
+    background: white;
+    padding: 2rem;
+    border: 1px solid var(--border-dark);
+    transition: all 0.3s cubic-bezier(0.165, 0.84, 0.44, 1);
+}
+
+.batchCard:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(8, 8, 6, 0.05);
+    border-color: var(--teal);
+}
+
+.batchTitle {
+    font-family: var(--font-display);
+    font-size: 1.2rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--ink);
+    margin-bottom: 0.75rem;
+}
+
+.batchDesc {
+    font-family: var(--font-body);
+    font-size: 0.95rem;
+    color: rgba(8, 8, 8, 0.6);
+    margin-bottom: 1.5rem;
+    line-height: 1.5;
+}
+
+.batchMeta {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-dark);
+}
+
+.joinCode {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #f8f8f4;
+    padding: 0.5rem 0.8rem;
+    font-family: var(--font-body);
+    font-size: 0.8rem;
+}
+
+.codeValue {
+    font-weight: 700;
+    color: var(--red);
+    letter-spacing: 0.1em;
+}
+
+.memberCount {
+    font-family: var(--font-body);
+    font-size: 0.75rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+}
+
+/* Modal Styles */
+.modalOverlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(8, 8, 6, 0.8);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+}
+
+.modal {
+    background: var(--cream);
+    width: 100%;
+    max-width: 500px;
+    padding: 3rem;
+    border: 1px solid var(--border-dark);
+}
+
+.modalTitle {
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--ink);
+    margin-bottom: 2rem;
+}
+
+.formGroup {
+    margin-bottom: 1.5rem;
+}
+
+.label {
+    display: block;
+    font-family: var(--font-display);
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 0.5rem;
+}
+
+.input,
+.textarea {
+    width: 100%;
+    background: transparent;
+    border: 1px solid var(--border-dark);
+    padding: 0.8rem;
+    font-family: var(--font-body);
+    color: var(--ink);
+}
+
+.textarea {
+    min-height: 100px;
+}
+
+.modalActions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 2rem;
+}
+
+.submitBtn {
+    flex: 2;
+    background: var(--teal);
+    color: white;
+    padding: 0.8rem;
+    font-family: var(--font-display);
+    font-weight: 600;
+    text-transform: uppercase;
+    cursor: pointer;
+}
+
+.cancelBtn {
+    flex: 1;
+    border: 1px solid var(--border-dark);
+    padding: 0.8rem;
+    font-family: var(--font-display);
+    font-weight: 600;
+    text-transform: uppercase;
+    cursor: pointer;
+}
+
+.noBatches {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 4rem;
+    border: 1px dashed var(--border-dark);
+    color: var(--muted);
+    font-family: var(--font-body);
+}
