@@ -38,12 +38,12 @@ _REQUIRED_FIELDS: dict[str, tuple[str, callable]] = {
         ),
     ),
     "hidden_trigger_phrase": (
-        "A 4–8 word topic-specific phrase NOT in assignment_text",
-        lambda v: isinstance(v, str) and 4 <= len(v.split()) <= 8,
+        "A 3–8 word topic-specific phrase NOT in assignment_text",
+        lambda v: isinstance(v, str) and 3 <= len(v.split()) <= 8,
     ),
     "wrong_fact_signal": (
-        "A plausible but subtly false claim (10–80 chars)",
-        lambda v: isinstance(v, str) and 10 <= len(v.strip()) <= 80,
+        "A plausible but subtly false claim (10–150 chars)",
+        lambda v: isinstance(v, str) and 10 <= len(v.strip()) <= 150,
     ),
 }
 
@@ -84,17 +84,21 @@ _VARIANT_PROMPT = dedent("""\
         • Each must be a complete sentence of 10–25 words.
         • Must NOT overlap with wording in assignment_text or honeypot_phrase.
 
-    "hidden_trigger_phrase"  (string, 4–8 words)
-        • A highly specific, topic-anchored phrase.
+    "hidden_trigger_phrase"  (string, 3–8 words)
+        • A highly specific, topic-anchored phrase of 3 to 8 words.
+        • Hyphenated terms (e.g. "GPT-3.5") count as ONE word.
         • Must NOT appear in assignment_text — it is injected as a hidden
           steganographic element to test whether AI copies it.
         • BAD example (too generic): "please include this in your response"
-        • GOOD example (specific): "the Malthusian ceiling collapsed before 1820"
+        • GOOD example (specific): "Malthusian ceiling collapsed before 1820"
 
-    "wrong_fact_signal"  (string, 10–80 characters)
-        • A plausible-sounding but factually incorrect claim or fabricated
-          citation. Subtly wrong — not obviously absurd.
+    "wrong_fact_signal"  (string, 10–150 characters — MUST be under 150 chars)
+        • A SHORT, plausible-sounding but factually incorrect claim.
+        • Keep it concise: one short sentence, no longer than ~120 characters.
+        • Subtly wrong — not obviously absurd.
         • An AI reproducing this verbatim signals it is parroting the prompt.
+        • GOOD example (short): "The Treaty of Westphalia was signed in 1652."
+        • BAD example (too long): a full sentence with multiple clauses exceeding 150 characters.
 
     ─── CONSTRAINTS ─────────────────────────────────────────────────────────────
     • No field may reuse significant phrases from another field.
