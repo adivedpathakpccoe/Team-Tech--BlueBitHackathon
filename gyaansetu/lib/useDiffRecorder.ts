@@ -65,19 +65,18 @@ export function useDiffRecorder() {
     }, [])
 
     /**
-     * Push a snapshot if enough time has elapsed and the code changed.
+     * Push a snapshot if enough time has elapsed since the last one.
+     * Callers must update lastCodeRef before calling this.
      */
     const maybeSnapshot = useCallback((currentCode: string) => {
         const t = now()
         if (
             t - lastSnapshotTimeRef.current >= SNAPSHOT_INTERVAL_MS &&
-            currentCode !== lastCodeRef.current &&
             totalSnapshotBytesRef.current + currentCode.length < MAX_SNAPSHOT_BYTES
         ) {
             snapshotsRef.current.push({ t, code: currentCode })
             lastSnapshotTimeRef.current = t
             totalSnapshotBytesRef.current += currentCode.length
-            lastCodeRef.current = currentCode
         }
     }, [now])
 
