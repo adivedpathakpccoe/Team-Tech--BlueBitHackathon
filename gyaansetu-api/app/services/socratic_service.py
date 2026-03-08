@@ -92,10 +92,15 @@ class SocraticService(BaseService):
         # Fetch the original essay for context - check both proactive and reactive tables
         essay_text = ""
         # 1. Check proactive
-        pro_res = await self.db.table("submissions").select("essay_text").eq("id", str(submission_id)).execute()
-        if pro_res.data:
-            essay_text = pro_res.data[0]["essay_text"]
-        else:
+        try:
+            pro_res = await self.db.table("submissions").select("essay_text").eq("id", str(submission_id)).execute()
+            if pro_res.data:
+                essay_text = pro_res.data[0]["essay_text"]
+        except Exception as e:
+            # Table might not exist yet, or other DB error
+            pass
+
+        if not essay_text:
             # 2. Check reactive
             react_res = await self.db.table("reactive_submissions").select("extracted_text").eq("id", str(submission_id)).execute()
             if react_res.data:

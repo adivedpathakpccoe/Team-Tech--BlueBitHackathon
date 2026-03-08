@@ -24,6 +24,49 @@ interface BehaviorTracker {
     lastKeyTime: number | null
 }
 
+const SOCRATIC_TIME_LIMIT = 180 // 3 minutes in seconds
+
+function SocraticTimer({ onExpire, isActive }: { onExpire: () => void, isActive: boolean }) {
+    const [timeLeft, setTimeLeft] = useState(SOCRATIC_TIME_LIMIT)
+    const timerRef = useRef<NodeJS.Timeout | null>(null)
+
+    useEffect(() => {
+        if (!isActive) return
+
+        timerRef.current = setInterval(() => {
+            setTimeLeft(prev => {
+                if (prev <= 1) {
+                    if (timerRef.current) clearInterval(timerRef.current)
+                    onExpire()
+                    return 0
+                }
+                return prev - 1
+            })
+        }, 1000)
+
+        return () => {
+            if (timerRef.current) clearInterval(timerRef.current)
+        }
+    }, [isActive, onExpire])
+
+    const formatTime = (seconds: number) => {
+        const m = Math.floor(seconds / 60)
+        const s = seconds % 60
+        return `${m}:${s.toString().padStart(2, '0')}`
+    }
+
+    const isUrgent = timeLeft <= 30
+
+    return (
+        <div className={`${styles.timer} ${isUrgent ? styles.timerUrgent : ''}`}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
+            </svg>
+            <span>Time Remaining: {formatTime(timeLeft)}</span>
+        </div>
+    )
+}
+
 const difficultyStyle: Record<string, string> = {
     easy: styles.diffEasy,
     medium: styles.diffMedium,
@@ -258,6 +301,16 @@ export default function AssignmentWorkspace({
         }
     }
 
+    const handleSocraticTimeout = () => {
+        if (reactiveFinalScore || finalScore) return
+        toast.error('Time expired! Auto-submitting response.')
+        if (assignmentMode === 'reactive') {
+            handleReactiveSocraticSubmit()
+        } else {
+            handleSocraticSubmit()
+        }
+    }
+
     const handleReactiveSocraticSubmit = async () => {
         if (!reactiveSubmissionId || reactiveSocraticResponse.trim().length < 20 || isScoringReactive) return
 
@@ -413,7 +466,13 @@ export default function AssignmentWorkspace({
                         {hasSocraticChallenge && !hasAnsweredSocratic && (
                             <div className={styles.socraticSection}>
                                 <div className={styles.socraticHeader}>
-                                    <span className={styles.socraticTag}>Socrates Engine</span>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                        <span className={styles.socraticTag}>Socrates Engine</span>
+                                        <SocraticTimer
+                                            isActive={!hasAnsweredSocratic && !isScoringReactive}
+                                            onExpire={handleSocraticTimeout}
+                                        />
+                                    </div>
                                     <h2 className={styles.socraticTitle}>Viva Voce Verification</h2>
                                     <p className={styles.socraticSubtitle}>
                                         Answer the question below to verify you actually wrote the content you just submitted.
@@ -678,7 +737,13 @@ export default function AssignmentWorkspace({
                     {assignment.enable_socratic && (
                         <div className={styles.socraticSection}>
                             <div className={styles.socraticHeader}>
-                                <span className={styles.socraticTag}>Socrates Engine</span>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                    <span className={styles.socraticTag}>Socrates Engine</span>
+                                    <SocraticTimer
+                                        isActive={!!challenge && !finalScore && !isScoringResponse}
+                                        onExpire={handleSocraticTimeout}
+                                    />
+                                </div>
                                 <h2 className={styles.socraticTitle}>Viva Voce Verification</h2>
                                 <p className={styles.socraticSubtitle}>
                                     Answer the question below to verify you understand what you wrote.
